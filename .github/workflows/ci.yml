@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # Branch pushes are covered by their pull request; one runner serves every repo.
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -10,7 +12,7 @@ permissions:
 jobs:
   check:
     name: nix flake check
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       # The monorepo is private. The org's GitHub App mints a token, valid for an hour, that can
@@ -25,8 +27,9 @@ jobs:
           repositories: tidefell
           permission-contents: read
       - uses: DeterminateSystems/nix-installer-action@v16
-        with:
-          extra-conf: |
-            access-tokens = github.com=${{ steps.token.outputs.token }}
       - name: Check
+        # Through the environment rather than the installer's extra-conf, which is skipped when
+        # the runner already has Nix.
+        env:
+          NIX_CONFIG: access-tokens = github.com=${{ steps.token.outputs.token }}
         run: nix flake check --print-build-logs
