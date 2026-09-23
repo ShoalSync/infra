@@ -18,12 +18,18 @@ these services improve connectivity and offer a hosted option.
 
 ## Deployment
 
-Tooling is undecided: either Terraform + Ansible, or Nix. Nothing here is deployable yet.
+Hosts are NixOS configurations in a Nix flake (see
+[ADR 0003](https://github.com/tidefell/tidefell/blob/main/docs/adr/0003-nix-infrastructure.md)).
+The monorepo is a flake input pinned to a release tag. Nothing here is deployable yet.
 
 ## Secrets
 
 Secrets are never committed. `*.env` files and `secrets/` directories are gitignored; supply
-credentials through the deployment tool's secret store.
+secrets in encrypted form (agenix or sops-nix).
+
+## Conventions
+
+Read [CONVENTIONS.md](CONVENTIONS.md) before making changes.
 
 ## License
 
