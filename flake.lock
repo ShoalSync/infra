@@ -1,0 +1,68 @@
+{
+  "nodes": {
+    "iroh": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788981545,
+        "narHash": "sha256-BmunhUBXqTJuxth5asENVV7y8wooTh8W/+gzgq1fNVI=",
+        "owner": "n0-computer",
+        "repo": "iroh",
+        "rev": "17c0612f80f78f5288e97b818b1360ae6ea0a51a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "n0-computer",
+        "ref": "v1.2.0",
+        "repo": "iroh",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1790046670,
+        "narHash": "sha256-MYiI+CzL0tuWgRPjGsKCDHqYs2T3OzMlMQWOYWG0qso=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "6774f7bc253789b113a4f39285dc0fa100abeacc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "iroh": "iroh",
+        "nixpkgs": [
+          "tidefell",
+          "nixpkgs"
+        ],
+        "tidefell": "tidefell"
+      }
+    },
+    "tidefell": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1790172051,
+        "narHash": "sha256-d+g0Dn4m57E+JXGKWE3EOWmHs4bvfY7qiiz1yrxMGtc=",
+        "owner": "tidefell",
+        "repo": "tidefell",
+        "rev": "d11a5d44d2d6695045abe4ac37ace6e6cb722b91",
+        "type": "github"
+      },
+      "original": {
+        "owner": "tidefell",
+        "ref": "v0.2.0",
+        "repo": "tidefell",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

@@ -45,3 +45,7 @@ terraform.rc
 # Secrets: never commit
 *.env
 secrets/
+
+# Nix build output
+result
+result-*
