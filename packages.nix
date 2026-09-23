@@ -6,6 +6,8 @@ let
     version = "1.2.0";
     src = iroh;
     cargoLock.lockFile = "${iroh}/Cargo.lock";
+    # Upstream's .cargo/config.toml selects their CI linkers (clang + lld, cross gcc).
+    postPatch = "rm .cargo/config.toml";
     # Upstream's test suites need network access; the binaries are exercised by our checks.
     doCheck = false;
   };
