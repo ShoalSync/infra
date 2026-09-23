@@ -1,0 +1,111 @@
+# services.tidefell-relay: a self-hosted iroh relay for Tidefell peers.
+#
+# `settings` is iroh-relay's TOML configuration. With TLS in LetsEncrypt mode, certificates
+# are stored in the state directory. Ports: TCP 80 (HTTP, ACME), TCP 443 (HTTPS relay),
+# UDP 7842 (QUIC address discovery).
+{ relayPackage }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+let
+  cfg = config.services.tidefell-relay;
+  format = pkgs.formats.toml { };
+in
+{
+  options.services.tidefell-relay = {
+    enable = lib.mkEnableOption "the Tidefell (iroh) relay server";
+
+    package = lib.mkOption {
+      type = lib.types.package;
+      default = relayPackage pkgs;
+      defaultText = lib.literalExpression "infra.packages.\${system}.iroh-relay";
+      description = "Package providing `iroh-relay`.";
+    };
+
+    hostname = lib.mkOption {
+      type = lib.types.str;
+      example = "relay.tidefell.org";
+      description = "Public DNS name of the relay; used for its LetsEncrypt certificate.";
+    };
+
+    acmeContact = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "ops@tidefell.org";
+      description = "Contact email given to LetsEncrypt.";
+    };
+
+    openFirewall = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Open TCP 80 and 443 and UDP 7842.";
+    };
+
+    settings = lib.mkOption {
+      type = format.type;
+      default = { };
+      description = "Additional iroh-relay configuration, merged over the defaults.";
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    services.tidefell-relay.settings = {
+      enable_relay = lib.mkDefault true;
+      http_bind_addr = lib.mkDefault "[::]:80";
+      enable_quic_addr_discovery = lib.mkDefault true;
+      enable_metrics = lib.mkDefault true;
+      metrics_bind_addr = lib.mkDefault "127.0.0.1:9090";
+      tls = {
+        https_bind_addr = lib.mkDefault "[::]:443";
+        hostname = lib.mkDefault [ cfg.hostname ];
+        cert_mode = lib.mkDefault "LetsEncrypt";
+        cert_dir = lib.mkDefault "/var/lib/tidefell-relay/certs";
+        prod_tls = lib.mkDefault true;
+      }
+      // lib.optionalAttrs (cfg.acmeContact != null) { contact = lib.mkDefault cfg.acmeContact; };
+    };
+
+    networking.firewall = lib.mkIf cfg.openFirewall {
+      allowedTCPPorts = [
+        80
+        443
+      ];
+      allowedUDPPorts = [ 7842 ];
+    };
+
+    systemd.services.tidefell-relay = {
+      description = "Tidefell relay (iroh-relay)";
+      wantedBy = [ "multi-user.target" ];
+      wants = [ "network-online.target" ];
+      after = [ "network-online.target" ];
+      serviceConfig = {
+        ExecStart = "${lib.getExe cfg.package} --config-path ${format.generate "iroh-relay.toml" cfg.settings}";
+        DynamicUser = true;
+        StateDirectory = "tidefell-relay";
+        WorkingDirectory = "/var/lib/tidefell-relay";
+        AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
+        CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
+        Restart = "on-failure";
+        RestartSec = 5;
+        NoNewPrivileges = true;
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        PrivateTmp = true;
+        ProtectKernelTunables = true;
+        ProtectKernelModules = true;
+        ProtectControlGroups = true;
+        RestrictAddressFamilies = [
+          "AF_INET"
+          "AF_INET6"
+          "AF_NETLINK"
+          "AF_UNIX"
+        ];
+        LockPersonality = true;
+        RestrictSUIDSGID = true;
+      };
+    };
+  };
+}
