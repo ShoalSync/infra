@@ -27,8 +27,9 @@ jobs:
           repositories: tidefell
           permission-contents: read
       - uses: DeterminateSystems/nix-installer-action@v16
-        with:
-          extra-conf: |
-            access-tokens = github.com=${{ steps.token.outputs.token }}
       - name: Check
+        # Through the environment rather than the installer's extra-conf, which is skipped when
+        # the runner already has Nix.
+        env:
+          NIX_CONFIG: access-tokens = github.com=${{ steps.token.outputs.token }}
         run: nix flake check --print-build-logs
