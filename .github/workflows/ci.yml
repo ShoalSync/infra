@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # Branch pushes are covered by their pull request; one runner serves every repo.
   push:
+    branches: [main]
   pull_request:
 
 permissions:
