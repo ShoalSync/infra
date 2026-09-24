@@ -3,7 +3,7 @@
 
   inputs = {
     # The monorepo release this infrastructure runs. Bump deliberately; flake.lock records it.
-    tidefell.url = "github:tidefell/tidefell/v0.5.0";
+    tidefell.url = "github:tidefell/tidefell/v0.6.0";
     # One nixpkgs for everything: the monorepo's pin.
     nixpkgs.follows = "tidefell/nixpkgs";
     # Upstream relay and DNS server sources, built by ./packages.nix.
@@ -103,6 +103,7 @@
           alwaysOn = evalRole self.nixosModules.role-always-on {
             tidefell.domain = "example.org";
             tidefell.alwaysOn.relay.enable = true;
+            tidefell.alwaysOn.web.shareLinks = true;
           };
           unit = config: name: "${config.systemd.units."${name}.service".unit}/${name}.service";
         in
@@ -130,6 +131,7 @@
           always-on-config =
             assert alwaysOn.services.caddy.enable;
             assert alwaysOn.services.tidefelld.settings.web.bind == "127.0.0.1:8080";
+            assert alwaysOn.services.tidefelld.settings.web.share_links;
             assert alwaysOn.services.tidefelld.settings.network.relay.urls == [ "https://relay.example.org" ];
             assert builtins.elem 443 alwaysOn.networking.firewall.allowedTCPPorts;
             assert builtins.elem 7777 alwaysOn.networking.firewall.allowedUDPPorts;
