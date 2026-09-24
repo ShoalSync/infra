@@ -42,8 +42,7 @@ in
         type = lib.types.bool;
         default = false;
         description = ''
-          Let web accounts create share links (ADR 0019). Needs a pinned release that has
-          them (0.6.0 or later).
+          Let web accounts create share links (ADR 0019). Off by default.
         '';
       };
     };
