@@ -27,6 +27,20 @@ jobs:
           repositories: tidefell
           permission-contents: read
       - uses: DeterminateSystems/nix-installer-action@v16
+      # The always-on check boots VMs, which need KVM inside Nix's build sandbox: the build
+      # users, not only the runner's user, must be able to open /dev/kvm.
+      - name: KVM in the build sandbox
+        run: |
+          ls -l /dev/kvm || true
+          nix config show system-features
+          nix build --no-link --print-build-logs --impure --expr '
+            derivation {
+              name = "kvm-check";
+              system = builtins.currentSystem;
+              builder = "/bin/sh";
+              requiredSystemFeatures = [ "kvm" ];
+              args = [ "-c" "if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then echo KVM is usable > $out; else echo /dev/kvm is missing or not accessible to the build user; exit 1; fi" ];
+            }'
       - name: Check
         # Through the environment rather than the installer's extra-conf, which is skipped when
         # the runner already has Nix.

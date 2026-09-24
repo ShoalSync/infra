@@ -2,7 +2,8 @@
 #
 # `settings` is iroh-relay's TOML configuration. With TLS in LetsEncrypt mode, certificates
 # are stored in the state directory. Ports: TCP 80 (HTTP, ACME), TCP 443 (HTTPS relay),
-# UDP 7842 (QUIC address discovery).
+# UDP 7842 (QUIC address discovery). With `tls.enable = false` the relay serves plain HTTP on
+# `settings.http_bind_addr` for a TLS-terminating reverse proxy, without QUIC address discovery.
 { relayPackage }:
 {
   config,
@@ -38,6 +39,15 @@ in
       description = "Contact email given to LetsEncrypt.";
     };
 
+    tls.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Terminate TLS in the relay with a LetsEncrypt certificate. Turn off to run it behind a
+        reverse proxy that terminates TLS.
+      '';
+    };
+
     openFirewall = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -55,9 +65,11 @@ in
     services.tidefell-relay.settings = {
       enable_relay = lib.mkDefault true;
       http_bind_addr = lib.mkDefault "[::]:80";
-      enable_quic_addr_discovery = lib.mkDefault true;
+      enable_quic_addr_discovery = lib.mkDefault cfg.tls.enable;
       enable_metrics = lib.mkDefault true;
       metrics_bind_addr = lib.mkDefault "127.0.0.1:9090";
+    }
+    // lib.optionalAttrs cfg.tls.enable {
       tls = {
         https_bind_addr = lib.mkDefault "[::]:443";
         hostname = lib.mkDefault [ cfg.hostname ];

@@ -5,7 +5,7 @@ Read this before changing anything in this repository.
 ## Owns
 
 NixOS host configurations and deployment for the relay, DNS/pkarr address lookup,
-hosted web peer and full-replica storage.
+the modules and roles for self-run always-on peers (ADR 0018).
 
 ## Consumes
 
