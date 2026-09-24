@@ -1,11 +1,7 @@
 # Role: public relay for Tidefell peers.
 { config, lib, ... }:
 {
-  options.tidefell.domain = lib.mkOption {
-    type = lib.types.str;
-    example = "tidefell.org";
-    description = "Base domain for Tidefell's hosted services.";
-  };
+  imports = [ ../modules/common.nix ];
 
   config.services.tidefell-relay = {
     enable = true;

@@ -1,9 +1,9 @@
 {
-  description = "Tidefell hosted infrastructure: relay, DNS/pkarr lookup and full replicas";
+  description = "Tidefell infrastructure: relay, DNS/pkarr lookup, full replicas and self-run always-on peers";
 
   inputs = {
     # The monorepo release this infrastructure runs. Bump deliberately; flake.lock records it.
-    tidefell.url = "github:tidefell/tidefell/v0.2.0";
+    tidefell.url = "github:tidefell/tidefell/v0.5.0";
     # One nixpkgs for everything: the monorepo's pin.
     nixpkgs.follows = "tidefell/nixpkgs";
     # Upstream relay and DNS server sources, built by ./packages.nix.
@@ -54,6 +54,14 @@
             ./roles/replica.nix
           ];
         };
+        # A self-run always-on peer: full replica, web peer over HTTPS, optional relay.
+        role-always-on = {
+          imports = [
+            self.nixosModules.relay
+            self.nixosModules.tidefelld
+            ./roles/always-on.nix
+          ];
+        };
       };
 
       # Each role, evaluated in a container system: builds its systemd unit and configuration.
@@ -92,6 +100,10 @@
               }
             ];
           };
+          alwaysOn = evalRole self.nixosModules.role-always-on {
+            tidefell.domain = "example.org";
+            tidefell.alwaysOn.relay.enable = true;
+          };
           unit = config: name: "${config.systemd.units."${name}.service".unit}/${name}.service";
         in
         {
@@ -115,6 +127,25 @@
             grep -q 'tidefelld run --config' ${unit replica "tidefelld"}
             touch $out
           '';
+          always-on-config =
+            assert alwaysOn.services.caddy.enable;
+            assert alwaysOn.services.tidefelld.settings.web.bind == "127.0.0.1:8080";
+            assert alwaysOn.services.tidefelld.settings.network.relay.urls == [ "https://relay.example.org" ];
+            assert builtins.elem 443 alwaysOn.networking.firewall.allowedTCPPorts;
+            assert builtins.elem 7777 alwaysOn.networking.firewall.allowedUDPPorts;
+            pkgs.runCommand "always-on-config-check" { } ''
+              grep -q 'tidefelld run --config' ${unit alwaysOn "tidefelld"}
+              config=$(grep -o '/nix/store/[^ ]*-iroh-relay.toml' ${unit alwaysOn "tidefell-relay"})
+              grep -q '127.0.0.1:3340' "$config"
+              ! grep -q 'cert_mode' "$config"
+              touch $out
+            '';
+          # The exit criterion of Phase 5: three VMs; needs KVM.
+          always-on = import ./tests/always-on.nix {
+            inherit pkgs;
+            alwaysOn = self.nixosModules.role-always-on;
+            tidefelld = self.nixosModules.tidefelld;
+          };
           # The binaries run and report their versions.
           binaries = pkgs.runCommand "binaries-check" { } ''
             ${self.packages.x86_64-linux.iroh-relay}/bin/iroh-relay --version
