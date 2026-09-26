@@ -48,16 +48,16 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1790364317,
-        "narHash": "sha256-/nI5rtR+ydDcXsv20ySmwhHM5+fWZPea4iflShcL/iA=",
+        "lastModified": 1790403835,
+        "narHash": "sha256-KatCkBKUWght/8y4zWmUxwx1AFS+MhdOYvwkP2l6clY=",
         "owner": "tidefell",
         "repo": "tidefell",
-        "rev": "80873d19240d658ccd071f14e2cbc8fb51c4fe02",
+        "rev": "f88c34a79c20538ac87846a16f7d2f29a180d2a5",
         "type": "github"
       },
       "original": {
         "owner": "tidefell",
-        "ref": "v0.8.0",
+        "ref": "v0.9.0",
         "repo": "tidefell",
         "type": "github"
       }
