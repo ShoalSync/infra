@@ -30,7 +30,7 @@ Hosts are NixOS configurations built from this flake (see
 | `checks.x86_64-linux.*` | Each role evaluated and its units and configuration built |
 | `checks.x86_64-linux.always-on` | Three VMs: a laptop and a phone, never online together, sync through an always-on peer (needs KVM) |
 
-Pins live in `flake.nix` and `flake.lock`: the monorepo at a release tag (currently `v0.10.0`),
+Pins live in `flake.nix` and `flake.lock`: the monorepo at a release tag (currently `v0.11.0`),
 iroh at `v1.2.0`, and nixpkgs following the monorepo's pin. Update the monorepo by changing the
 tag in `flake.nix` and running `nix flake update tidefell`.
 
