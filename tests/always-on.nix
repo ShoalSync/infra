@@ -30,15 +30,19 @@ pkgs.testers.runNixOSTest {
     server = {
       imports = [ alwaysOn ];
       environment.systemPackages = [ pkgs.curl ];
-      tidefell.domain = "server.test";
-      # No certificates in the test network: the web peer answers on localhost.
-      tidefell.alwaysOn.web.tls = false;
-      services.tidefelld.settings.network = network;
-      # Prometheus scrapes tidefelld's metrics (ADR 0030).
-      tidefell.alwaysOn.metrics.enable = true;
-      services.prometheus = {
-        enable = true;
-        globalConfig.scrape_interval = "1s";
+      tidefell = {
+        domain = "server.test";
+        # No certificates in the test network: the web peer answers on localhost.
+        alwaysOn.web.tls = false;
+        # Prometheus scrapes tidefelld's metrics (ADR 0030).
+        alwaysOn.metrics.enable = true;
+      };
+      services = {
+        tidefelld.settings.network = network;
+        prometheus = {
+          enable = true;
+          globalConfig.scrape_interval = "1s";
+        };
       };
     };
     laptop = device;

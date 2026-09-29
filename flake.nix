@@ -101,13 +101,29 @@
             ];
           };
           alwaysOn = evalRole self.nixosModules.role-always-on {
-            tidefell.domain = "example.org";
-            tidefell.alwaysOn.relay.enable = true;
-            tidefell.alwaysOn.web.shareLinks = true;
+            tidefell = {
+              domain = "example.org";
+              alwaysOn.relay.enable = true;
+              alwaysOn.web.shareLinks = true;
+            };
           };
           unit = config: name: "${config.systemd.units."${name}.service".unit}/${name}.service";
+          # Shell, Nix and spelling checks over the source (ADR 0031).
+          lint =
+            name: tools: script:
+            pkgs.runCommand name { nativeBuildInputs = tools; } ''
+              cd ${self}
+              ${script}
+              touch $out
+            '';
         in
         {
+          shellcheck = lint "shellcheck" [ pkgs.shellcheck ] ''
+            find . -name '*.sh' -print0 | xargs -0 --no-run-if-empty shellcheck
+          '';
+          statix = lint "statix" [ pkgs.statix ] "statix check .";
+          deadnix = lint "deadnix" [ pkgs.deadnix ] "deadnix --fail .";
+          typos = lint "typos" [ pkgs.typos ] "typos";
           relay =
             assert relay.networking.firewall.allowedUDPPorts == [ 7842 ];
             pkgs.runCommand "relay-check" { } ''

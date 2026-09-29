@@ -115,19 +115,21 @@ in
     })
 
     (lib.mkIf cfg.relay.enable {
-      services.tidefell-relay = {
-        enable = true;
-        hostname = "relay.${domain}";
-        tls.enable = false;
-        openFirewall = false;
-        settings.http_bind_addr = "127.0.0.1:3340";
-      };
-      services.caddy.virtualHosts."relay.${domain}".extraConfig = ''
-        reverse_proxy 127.0.0.1:3340
-      '';
-      services.tidefelld.settings.network.relay = {
-        mode = "custom";
-        urls = [ "https://relay.${domain}" ];
+      services = {
+        tidefell-relay = {
+          enable = true;
+          hostname = "relay.${domain}";
+          tls.enable = false;
+          openFirewall = false;
+          settings.http_bind_addr = "127.0.0.1:3340";
+        };
+        caddy.virtualHosts."relay.${domain}".extraConfig = ''
+          reverse_proxy 127.0.0.1:3340
+        '';
+        tidefelld.settings.network.relay = {
+          mode = "custom";
+          urls = [ "https://relay.${domain}" ];
+        };
       };
     })
 

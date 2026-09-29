@@ -50,7 +50,7 @@ in
     };
 
     settings = lib.mkOption {
-      type = format.type;
+      inherit (format) type;
       default = { };
       description = "Additional iroh-dns-server configuration, merged over the defaults.";
     };
