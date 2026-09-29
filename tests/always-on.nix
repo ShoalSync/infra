@@ -34,6 +34,12 @@ pkgs.testers.runNixOSTest {
       # No certificates in the test network: the web peer answers on localhost.
       tidefell.alwaysOn.web.tls = false;
       services.tidefelld.settings.network = network;
+      # Prometheus scrapes tidefelld's metrics (ADR 0030).
+      tidefell.alwaysOn.metrics.enable = true;
+      services.prometheus = {
+        enable = true;
+        globalConfig.scrape_interval = "1s";
+      };
     };
     laptop = device;
     phone = device;
@@ -118,6 +124,31 @@ pkgs.testers.runNixOSTest {
         cli(laptop, f"folder scan {folder}")
         server.wait_until_succeeds(f"grep -qx 'sand and sea' {PHOTOS}/beach.jpg")
         offline(laptop)
+
+    with subtest("Prometheus scrapes the always-on peer, which counted the photo"):
+        server.succeed("curl -sf http://127.0.0.1:9477/metrics | grep -q '^# EOF$'")
+        server.wait_for_unit("prometheus.service")
+
+
+        def query(expression):
+            out = server.succeed(
+                f"curl -sf http://127.0.0.1:9090/api/v1/query --data-urlencode 'query={expression}'"
+            )
+            return json.loads(out)["data"]["result"]
+
+
+        server.wait_until_succeeds(
+            "curl -sf http://127.0.0.1:9090/api/v1/query --data-urlencode "
+            "'query=up{job=\"tidefelld\"} == 1' | grep -q tidefelld"
+        )
+
+
+        def counted(_):
+            received = query('tidefell_content_received_bytes_total{network="local"}')
+            return len(received) == 1 and float(received[0]["value"][1]) >= 12
+
+
+        retry(counted)
 
     with subtest("the phone, a partial replica, gets the photo from the always-on peer"):
         online(phone)

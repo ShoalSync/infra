@@ -56,6 +56,23 @@ in
       '';
     };
 
+    metrics = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Serve tidefelld's Prometheus metrics on `127.0.0.1:<port>` and scrape them with this
+          host's Prometheus (`services.prometheus`), if it runs (ADR 0030). The endpoint has no
+          authentication, so it stays on loopback.
+        '';
+      };
+      port = lib.mkOption {
+        type = lib.types.port;
+        default = 9477;
+        description = "Loopback TCP port tidefelld serves `/metrics` on.";
+      };
+    };
+
     acmeEmail = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
@@ -85,6 +102,16 @@ in
       services.caddy.virtualHosts.${domain}.extraConfig = ''
         reverse_proxy 127.0.0.1:8080
       '';
+    })
+
+    (lib.mkIf cfg.metrics.enable {
+      services.tidefelld.settings.metrics.listen = "127.0.0.1:${toString cfg.metrics.port}";
+      services.prometheus.scrapeConfigs = [
+        {
+          job_name = "tidefelld";
+          static_configs = [ { targets = [ "127.0.0.1:${toString cfg.metrics.port}" ]; } ];
+        }
+      ];
     })
 
     (lib.mkIf cfg.relay.enable {
