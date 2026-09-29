@@ -14,25 +14,29 @@ jobs:
     name: nix flake check
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       # The monorepo is private. The org's GitHub App mints a token, valid for an hour, that can
       # only read tidefell/tidefell; Nix uses it to fetch the pinned release.
       - name: Token for the monorepo
         id: token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
           app-id: ${{ secrets.CROSS_REPO_CI_APP }}
           private-key: ${{ secrets.CROSS_REPO_CI_KEY }}
           owner: Tidefell
           repositories: tidefell
           permission-contents: read
-      - uses: DeterminateSystems/nix-installer-action@v16
+      - uses: DeterminateSystems/nix-installer-action@e50d5f73bfe71c2dd0aa4218de8f4afa59f8f81d # v16
       # The always-on check boots VMs, which need KVM inside Nix's build sandbox: the build
       # users, not only the runner's user, must be able to open /dev/kvm.
       - name: KVM in the build sandbox
         run: |
           ls -l /dev/kvm || true
           nix config show system-features
+          # The Nix expression is single-quoted on purpose: the shell must not expand it.
+          # shellcheck disable=SC2016
           nix build --no-link --print-build-logs --impure --expr '
             derivation {
               name = "kvm-check";
@@ -47,3 +51,27 @@ jobs:
         env:
           NIX_CONFIG: access-tokens = github.com=${{ steps.token.outputs.token }}
         run: nix flake check --print-build-logs
+
+  # The workflows themselves (ADR 0031): actionlint, and zizmor, whose findings of medium
+  # severity or higher fail, so actions stay pinned by commit.
+  workflows:
+    name: Workflows
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: zizmor@1.30.1
+      - name: actionlint
+        # install-action does not carry it: the release binary, checked against its checksum.
+        run: |
+          version=1.7.12
+          name="actionlint_${version}_linux_amd64.tar.gz"
+          curl -sfL -o "$RUNNER_TEMP/$name" "https://github.com/rhysd/actionlint/releases/download/v$version/$name"
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/$name" | sha256sum --check --quiet
+          tar -xzf "$RUNNER_TEMP/$name" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint"
+      - name: zizmor
+        run: zizmor --offline --min-severity medium .
