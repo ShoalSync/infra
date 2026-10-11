@@ -86,16 +86,16 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1791731540,
-        "narHash": "sha256-BDRqZefCZNmvsn7HHeQG24YoQBHaGXoS9yKV696W+nE=",
+        "lastModified": 1791739702,
+        "narHash": "sha256-k67/CStgC+FVgUXcLe+HTKdEJeo5xiz27PX0VkCavwI=",
         "owner": "tidefell",
         "repo": "tidefell",
-        "rev": "8fe5f590d96a3c1271292dc81c05cdd816aa8406",
+        "rev": "f0d092e443af882cb9b1e1332165fcd8017db429",
         "type": "github"
       },
       "original": {
         "owner": "tidefell",
-        "ref": "v0.14.0",
+        "ref": "v0.15.0",
         "repo": "tidefell",
         "type": "github"
       }
