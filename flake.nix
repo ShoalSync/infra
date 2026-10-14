@@ -3,7 +3,7 @@
 
   inputs = {
     # The monorepo release this infrastructure runs. Bump deliberately; flake.lock records it.
-    tidefell.url = "github:tidefell/tidefell/v0.17.1";
+    tidefell.url = "github:tidefell/tidefell/v0.18.0";
     # One nixpkgs for everything: the monorepo's pin.
     nixpkgs.follows = "tidefell/nixpkgs";
     # Upstream relay and DNS server sources, built by ./packages.nix.
