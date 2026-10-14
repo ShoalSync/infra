@@ -91,6 +91,9 @@ pkgs.testers.runNixOSTest {
         machine.succeed("systemctl stop tidefelld")
 
 
+    PHOTO_BYTES = 32 * 1024 * 1024
+
+
     def write(machine, name, contents):
         as_tidefell(machine, f"sh -c 'printf %s \"{contents}\" > {PHOTOS}/{name}'")
 
@@ -124,9 +127,12 @@ pkgs.testers.runNixOSTest {
         online(laptop)
         cli(laptop, f"peer add {server_id} --addr {server_addr}")
         cli(laptop, f"folder join {folder} {PHOTOS}")
-        write(laptop, "beach.jpg", "sand and sea")
+        # Large enough that the transfer outlasts the connection's move from the relay, which it
+        # starts on, to the direct path on the local network.
+        as_tidefell(laptop, f"sh -c 'head -c {PHOTO_BYTES} /dev/urandom > {PHOTOS}/beach.jpg'")
+        photo = laptop.succeed(f"sha256sum < {PHOTOS}/beach.jpg").split()[0]
         cli(laptop, f"folder scan {folder}")
-        server.wait_until_succeeds(f"grep -qx 'sand and sea' {PHOTOS}/beach.jpg")
+        server.wait_until_succeeds(f"sha256sum < {PHOTOS}/beach.jpg | grep -q {photo}")
         offline(laptop)
 
     with subtest("Prometheus scrapes the always-on peer, which counted the photo"):
@@ -148,8 +154,12 @@ pkgs.testers.runNixOSTest {
 
 
         def counted(_):
-            received = query('tidefell_content_received_bytes_total{network="local"}')
-            return len(received) == 1 and float(received[0]["value"][1]) >= 12
+            received = {
+                r["metric"]["network"]: float(r["value"][1])
+                for r in query("tidefell_content_received_bytes_total")
+            }
+            # All of it, and on the local network once the path there was found.
+            return received.get("local", 0) > 0 and sum(received.values()) >= PHOTO_BYTES
 
 
         retry(counted)
@@ -157,12 +167,12 @@ pkgs.testers.runNixOSTest {
     with subtest("the phone, a partial replica, gets the photo from the always-on peer"):
         online(phone)
         cli(phone, f"peer add {server_id} --addr {server_addr}")
-        cli(phone, f"folder join {folder} {PHOTOS} --partial 1000000")
+        cli(phone, f"folder join {folder} {PHOTOS} --partial 100000000")
         phone.wait_until_succeeds(
             f"runuser -u tidefell -- tidefell --data-dir {DATA} files {folder} | grep -q beach.jpg"
         )
         local = cli(phone, f"fetch {folder} beach.jpg").strip()
-        phone.succeed(f"grep -qx 'sand and sea' {local}")
+        phone.succeed(f"sha256sum < {local} | grep -q {photo}")
 
     with subtest("the phone adds a note, goes offline, and the laptop gets it later"):
         write(phone, "note.txt", "back soon")
