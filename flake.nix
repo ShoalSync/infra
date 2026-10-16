@@ -164,6 +164,13 @@
             alwaysOn = self.nixosModules.role-always-on;
             tidefelld = self.nixosModules.tidefelld;
           };
+          # A phone behind NAT backs up to a server directly and through the relay (ADR 0039);
+          # three VMs, needs KVM.
+          nat-backup = import ./tests/nat-backup.nix {
+            inherit pkgs;
+            tidefelld = self.nixosModules.tidefelld;
+            relay = self.packages.x86_64-linux.iroh-relay;
+          };
           # The binaries run and report their versions.
           binaries = pkgs.runCommand "binaries-check" { } ''
             ${self.packages.x86_64-linux.iroh-relay}/bin/iroh-relay --version
