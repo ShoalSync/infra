@@ -133,6 +133,25 @@
               grep -q 'ops@example.org' "$config"
               touch $out
             '';
+          # A relay that admits only holders of a token gets it from a credential, never the store.
+          relay-token =
+            let
+              tokened = evalRole self.nixosModules.role-relay {
+                tidefell.domain = "example.org";
+                services.tidefell-relay.accessTokenFile = "/run/secrets/relay-token";
+              };
+            in
+            assert tokened.systemd.services.tidefell-relay.serviceConfig.LoadCredential == [
+              "access-token:/run/secrets/relay-token"
+            ];
+            pkgs.runCommand "relay-token-check" { } ''
+              unit=${unit tokened "tidefell-relay"}
+              script=$(grep -o '/nix/store/[^ ]*-tidefell-relay' "$unit" | head -n 1)
+              grep -q 'CREDENTIALS_DIRECTORY/access-token' "$script"
+              config=$(grep -o '/nix/store/[^ ]*-iroh-relay.toml' "$script")
+              grep -q 'shared_token = \[\]' "$config"
+              touch $out
+            '';
           dns = pkgs.runCommand "dns-check" { } ''
             grep -q 'iroh-dns-server --config' ${unit dns "tidefell-dns"}
             config=$(grep -o '/nix/store/[^ ]*-iroh-dns-server.toml' ${unit dns "tidefell-dns"})
@@ -169,7 +188,7 @@
           nat-backup = import ./tests/nat-backup.nix {
             inherit pkgs;
             tidefelld = self.nixosModules.tidefelld;
-            relay = self.packages.x86_64-linux.iroh-relay;
+            relay = self.nixosModules.relay;
           };
           # The binaries run and report their versions.
           binaries = pkgs.runCommand "binaries-check" { } ''

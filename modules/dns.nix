@@ -118,7 +118,23 @@ in
         PrivateTmp = true;
         ProtectKernelTunables = true;
         ProtectKernelModules = true;
+        ProtectKernelLogs = true;
         ProtectControlGroups = true;
+        ProtectClock = true;
+        ProtectHostname = true;
+        ProtectProc = "invisible";
+        PrivateDevices = true;
+        RestrictNamespaces = true;
+        RestrictRealtime = true;
+        RemoveIPC = true;
+        MemoryDenyWriteExecute = true;
+        SystemCallArchitectures = "native";
+        SystemCallFilter = [
+          "@system-service"
+          "~@privileged"
+          "~@resources"
+        ];
+        UMask = "0077";
         RestrictAddressFamilies = [
           "AF_INET"
           "AF_INET6"

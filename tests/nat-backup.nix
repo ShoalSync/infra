@@ -10,6 +10,7 @@
 {
   pkgs,
   tidefelld,
+  # The infra relay module.
   relay,
 }:
 let
@@ -35,6 +36,7 @@ pkgs.testers.runNixOSTest {
     router =
       { pkgs, ... }:
       {
+        imports = [ relay ];
         virtualisation.vlans = [
           1
           2
@@ -49,12 +51,17 @@ pkgs.testers.runNixOSTest {
           nftables.enable = true;
         };
         environment.systemPackages = [ pkgs.nftables ];
-        systemd.services.relay = {
-          wantedBy = [ "multi-user.target" ];
-          serviceConfig.ExecStart = "${relay}/bin/iroh-relay --dev --config-path ${pkgs.writeText "relay.toml" ''
-            enable_metrics = false
-            http_bind_addr = "0.0.0.0:3340"
-          ''}";
+        # The infra relay module, as on an always-on peer: plain HTTP, which a proxy would
+        # wrap in TLS.
+        services.tidefell-relay = {
+          enable = true;
+          hostname = "router";
+          tls.enable = false;
+          openFirewall = false;
+          settings = {
+            http_bind_addr = "0.0.0.0:3340";
+            enable_metrics = false;
+          };
         };
       };
     server =
@@ -153,7 +160,11 @@ pkgs.testers.runNixOSTest {
 
 
       start_all()
-      router.wait_for_unit("relay.service")
+      router.wait_for_unit("tidefell-relay.service")
+      # Hardened: systemd rates the relay's exposure low (0 to 10, lower is better).
+      exposure = router.succeed("systemd-analyze security tidefell-relay.service | tail -n 1")
+      print(exposure)
+      assert float(find(r"exposure level for \S+: ([0-9.]+)", exposure)) <= 2.0, exposure
       for machine in (server, phone):
           machine.wait_for_unit("multi-user.target")
           machine.succeed("systemctl stop tidefelld")

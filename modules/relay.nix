@@ -14,6 +14,7 @@
 let
   cfg = config.services.tidefell-relay;
   format = pkgs.formats.toml { };
+  relay = "${lib.getExe cfg.package} --config-path ${format.generate "iroh-relay.toml" cfg.settings}";
 in
 {
   options.services.tidefell-relay = {
@@ -54,6 +55,18 @@ in
       description = "Open TCP 80 and 443 and UDP 7842.";
     };
 
+    accessTokenFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      description = ''
+        File holding the token that devices must present to use the relay
+        (`access.shared_token`); without it, the relay serves any device that reaches it.
+        Given to the service as a systemd credential, so it may be readable by root alone. Use a
+        path to a secret, not a Nix path literal, which would copy it into the store. The relay
+        does not start if the file is missing or empty.
+      '';
+    };
+
     settings = lib.mkOption {
       inherit (format) type;
       default = { };
@@ -68,6 +81,11 @@ in
       enable_quic_addr_discovery = lib.mkDefault cfg.tls.enable;
       enable_metrics = lib.mkDefault true;
       metrics_bind_addr = lib.mkDefault "127.0.0.1:9090";
+    }
+    # The token itself comes from the credential, through the environment: never the store.
+    # An empty list with no token makes iroh-relay refuse to start, so it fails closed.
+    // lib.optionalAttrs (cfg.accessTokenFile != null) {
+      access.shared_token = [ ];
     }
     // lib.optionalAttrs cfg.tls.enable {
       tls = {
@@ -94,7 +112,17 @@ in
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];
       serviceConfig = {
-        ExecStart = "${lib.getExe cfg.package} --config-path ${format.generate "iroh-relay.toml" cfg.settings}";
+        ExecStart =
+          if cfg.accessTokenFile == null then
+            relay
+          else
+            pkgs.writeShellScript "tidefell-relay" ''
+              set -eu
+              IROH_RELAY_ACCESS_TOKEN=$(cat "$CREDENTIALS_DIRECTORY/access-token")
+              export IROH_RELAY_ACCESS_TOKEN
+              exec ${relay}
+            '';
+        LoadCredential = lib.optional (cfg.accessTokenFile != null) "access-token:${toString cfg.accessTokenFile}";
         DynamicUser = true;
         StateDirectory = "tidefell-relay";
         WorkingDirectory = "/var/lib/tidefell-relay";
@@ -108,7 +136,23 @@ in
         PrivateTmp = true;
         ProtectKernelTunables = true;
         ProtectKernelModules = true;
+        ProtectKernelLogs = true;
         ProtectControlGroups = true;
+        ProtectClock = true;
+        ProtectHostname = true;
+        ProtectProc = "invisible";
+        PrivateDevices = true;
+        RestrictNamespaces = true;
+        RestrictRealtime = true;
+        RemoveIPC = true;
+        MemoryDenyWriteExecute = true;
+        SystemCallArchitectures = "native";
+        SystemCallFilter = [
+          "@system-service"
+          "~@privileged"
+          "~@resources"
+        ];
+        UMask = "0077";
         RestrictAddressFamilies = [
           "AF_INET"
           "AF_INET6"
