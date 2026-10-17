@@ -56,6 +56,16 @@ in
       '';
     };
 
+    relay.accessTokenFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      description = ''
+        Admit to the relay only devices presenting the token in this file; this peer presents
+        it too. Other devices set it with `network.relay.token_file`. A path to a secret, not a
+        Nix path literal, which would copy it into the store.
+      '';
+    };
+
     metrics = {
       enable = lib.mkOption {
         type = lib.types.bool;
@@ -122,7 +132,9 @@ in
           tls.enable = false;
           openFirewall = false;
           settings.http_bind_addr = "127.0.0.1:3340";
+          inherit (cfg.relay) accessTokenFile;
         };
+        tidefelld.relayTokenFile = cfg.relay.accessTokenFile;
         caddy.virtualHosts."relay.${domain}".extraConfig = ''
           reverse_proxy 127.0.0.1:3340
         '';

@@ -15,6 +15,10 @@ let
   };
   device = {
     imports = [ tidefelld ];
+    # IPv4 only: the test network's IPv6 addresses are global (2001:db8::/32), and transfers
+    # over a global address count as remote, not local, so the photo's network would depend on
+    # which address family the connection picks.
+    networking.enableIPv6 = false;
     services.tidefelld = {
       enable = true;
       settings.network = network // {
@@ -30,6 +34,10 @@ pkgs.testers.runNixOSTest {
     server = {
       imports = [ alwaysOn ];
       environment.systemPackages = [ pkgs.curl ];
+      # IPv4 only: the test network's IPv6 addresses are global (2001:db8::/32), and transfers
+      # over a global address count as remote, not local, so the photo's network would depend on
+      # which address family the connection picks.
+      networking.enableIPv6 = false;
       tidefell = {
         domain = "server.test";
         # No certificates in the test network: the web peer answers on localhost.

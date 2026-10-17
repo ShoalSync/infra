@@ -28,6 +28,11 @@ let
       address_lookup = false;
       local_discovery = false;
     };
+  # The relay admits only holders of this token, which the server and the phone present.
+  tokenFile = "/var/lib/relay-token";
+  token = {
+    systemd.tmpfiles.rules = [ "f ${tokenFile} 0600 root root - relay-test-token" ];
+  };
 in
 pkgs.testers.runNixOSTest {
   name = "nat-backup";
@@ -36,7 +41,10 @@ pkgs.testers.runNixOSTest {
     router =
       { pkgs, ... }:
       {
-        imports = [ relay ];
+        imports = [
+          relay
+          token
+        ];
         virtualisation.vlans = [
           1
           2
@@ -58,6 +66,7 @@ pkgs.testers.runNixOSTest {
           hostname = "router";
           tls.enable = false;
           openFirewall = false;
+          accessTokenFile = tokenFile;
           settings = {
             http_bind_addr = "0.0.0.0:3340";
             enable_metrics = false;
@@ -67,11 +76,15 @@ pkgs.testers.runNixOSTest {
     server =
       { nodes, ... }:
       {
-        imports = [ tidefelld ];
+        imports = [
+          tidefelld
+          token
+        ];
         virtualisation.vlans = [ 1 ];
         networking.firewall.allowedUDPPorts = [ 7777 ];
         services.tidefelld = {
           enable = true;
+          relayTokenFile = tokenFile;
           settings.network = network nodes // {
             bind = "0.0.0.0:7777";
           };
@@ -80,7 +93,10 @@ pkgs.testers.runNixOSTest {
     phone =
       { nodes, lib, ... }:
       {
-        imports = [ tidefelld ];
+        imports = [
+          tidefelld
+          token
+        ];
         virtualisation.vlans = [ 2 ];
         networking = {
           defaultGateway = {
@@ -92,6 +108,7 @@ pkgs.testers.runNixOSTest {
         };
         services.tidefelld = {
           enable = true;
+          relayTokenFile = tokenFile;
           settings.network = network nodes;
         };
       };
@@ -139,21 +156,28 @@ pkgs.testers.runNixOSTest {
           machine.wait_until_succeeds(f"runuser -u tidefell -- tidefell --data-dir {DATA} status")
 
 
-      def backup(batch, limit):
-          """Adds a batch of photos on the phone and returns how long the server took to have them."""
+      def arrived(batch, want):
+          return (
+              f"test $(find {CAMERA} -name 'IMG_{batch}_*' -type f -printf '%s\\n' | "
+              f"awk '{{ s += $1 }} END {{ print s + 0 }}') -ge {want}"
+          )
+
+
+      def take_photos(batch, photos):
           stage = f"{DATA}/stage-{batch}"
           as_tidefell(phone, f"mkdir -p {stage}")
-          for i in range(PHOTOS):
+          for i in range(photos):
               as_tidefell(phone, f"sh -c 'head -c {PHOTO_BYTES} /dev/urandom > {stage}/IMG_{batch}_{i}.jpg'")
-          want = PHOTOS * PHOTO_BYTES
-          started = time.monotonic()
           # Moved in at once, as a camera adds a finished photo; the phone's scan finds them.
           as_tidefell(phone, f"sh -c 'mv {stage}/* {CAMERA}/'")
-          server.wait_until_succeeds(
-              f"test $(find {CAMERA} -name 'IMG_{batch}_*' -type f -printf '%s\\n' | "
-              f"awk '{{ s += $1 }} END {{ print s + 0 }}') -ge {want}",
-              timeout=limit,
-          )
+
+
+      def backup(batch, limit):
+          """Adds a batch of photos on the phone and returns how long the server took to have them."""
+          want = PHOTOS * PHOTO_BYTES
+          started = time.monotonic()
+          take_photos(batch, PHOTOS)
+          server.wait_until_succeeds(arrived(batch, want), timeout=limit)
           took = time.monotonic() - started
           print(f"backup {batch}: {PHOTOS} photos, {want >> 20} MiB, in {took:.1f} s")
           return took
@@ -204,5 +228,23 @@ pkgs.testers.runNixOSTest {
               "nft add rule inet block forward iifname eth2 oifname eth1 meta l4proto udp drop"
           )
           backup("relay", 180)
+
+      with subtest("a phone with the wrong token gets nothing through the relay"):
+          phone.succeed("echo not-the-token > ${tokenFile}")
+          phone.succeed("systemctl restart tidefelld")
+          phone.wait_until_succeeds(f"runuser -u tidefell -- tidefell --data-dir {DATA} status")
+          take_photos("refused", 1)
+          time.sleep(60)
+          server.fail(arrived("refused", 1))
+
+      with subtest("with the right one it gets through again"):
+          phone.succeed("echo relay-test-token > ${tokenFile}")
+          phone.succeed("systemctl restart tidefelld")
+          server.wait_until_succeeds(arrived("refused", PHOTO_BYTES), timeout=180)
+
+      with subtest("the daemon is sandboxed"):
+          exposure = server.succeed("systemd-analyze security tidefelld.service | tail -n 1")
+          print(exposure)
+          assert float(find(r"exposure level for \S+: ([0-9.]+)", exposure)) <= 2.0, exposure
     '';
 }
