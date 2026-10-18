@@ -88,16 +88,16 @@
       "locked": {
         "lastModified": 1792258575,
         "narHash": "sha256-7hKAtrOohrMoYKDqi5kgnVPR2nDAdFO+R49Emq27hQY=",
-        "owner": "tidefell",
-        "repo": "tidefell",
+        "ref": "refs/tags/v0.21.0",
         "rev": "fc699bd4010b9380d54a036dfc34d07b1d4df1ef",
-        "type": "github"
+        "revCount": 246,
+        "type": "git",
+        "url": "ssh://git@github.com/ShoalSync/shoal"
       },
       "original": {
-        "owner": "tidefell",
-        "ref": "v0.21.0",
-        "repo": "tidefell",
-        "type": "github"
+        "ref": "refs/tags/v0.21.0",
+        "type": "git",
+        "url": "ssh://git@github.com/ShoalSync/shoal"
       }
     }
   },

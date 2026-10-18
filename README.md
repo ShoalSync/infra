@@ -56,11 +56,10 @@ the monorepo's always-on guide describes.
 
 ## CI
 
-`nix flake check` runs on every push. It includes the always-on VM test, so the runner needs
-KVM. The monorepo is private, so CI mints a read-only token
-for it with the organisation's GitHub App (secrets `CROSS_REPO_CI_APP`, the App ID, and
-`CROSS_REPO_CI_KEY`, its private key). The app must be installed on `tidefell/tidefell` with
-read access to contents.
+`nix flake check` runs on Forgejo for every pull request and push to `main`
+(`.forgejo/workflows/`). It includes the always-on VM test, so the runner needs KVM. The monorepo
+is private, so Nix fetches it over SSH with `TIDEFELL_READ_KEY`, an organisation secret holding a
+deploy key that can only read `tidefell/tidefell`. Locally, any key that can read it will do.
 
 ## Secrets
 

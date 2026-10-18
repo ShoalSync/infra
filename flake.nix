@@ -2,8 +2,9 @@
   description = "Tidefell infrastructure: relay, DNS/pkarr lookup, full replicas and self-run always-on peers";
 
   inputs = {
-    # The monorepo release this infrastructure runs. Bump deliberately; flake.lock records it.
-    tidefell.url = "github:tidefell/tidefell/v0.21.0";
+    # The monorepo release this infrastructure runs, from Forgejo over SSH (the repository is
+    # private). Bump the tag deliberately; flake.lock records it.
+    tidefell.url = "git+ssh://git@github.com/ShoalSync/shoal?ref=refs/tags/v0.21.0";
     # One nixpkgs for everything: the monorepo's pin.
     nixpkgs.follows = "tidefell/nixpkgs";
     # Upstream relay and DNS server sources, built by ./packages.nix.

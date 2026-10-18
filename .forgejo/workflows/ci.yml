@@ -1,7 +1,7 @@
 name: CI
 
 on:
-  # Branch pushes are covered by their pull request; one runner serves every repo.
+  # Branch pushes are covered by their pull request.
   push:
     branches: [main]
   pull_request:
@@ -17,18 +17,21 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      # The monorepo is private. The org's GitHub App mints a token, valid for an hour, that can
-      # only read tidefell/tidefell; Nix uses it to fetch the pinned release.
-      - name: Token for the monorepo
-        id: token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
-        with:
-          app-id: ${{ secrets.CROSS_REPO_CI_APP }}
-          private-key: ${{ secrets.CROSS_REPO_CI_KEY }}
-          owner: Tidefell
-          repositories: tidefell
-          permission-contents: read
-      - uses: DeterminateSystems/nix-installer-action@e50d5f73bfe71c2dd0aa4218de8f4afa59f8f81d # v16
+      # The monorepo is private: Nix fetches the pinned release over SSH with a deploy key that
+      # can only read tidefell/tidefell, against Forgejo's pinned host key.
+      - name: Key for the monorepo
+        env:
+          TIDEFELL_READ_KEY: ${{ secrets.TIDEFELL_READ_KEY }}
+          KNOWN_HOSTS: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+        run: |
+          dir="$RUNNER_TEMP/ssh"
+          mkdir -p "$dir"
+          chmod 700 "$dir"
+          # A secret pasted with Windows line endings makes ssh refuse the key ("error in libcrypto").
+          (umask 077 && printf '%s\n' "$TIDEFELL_READ_KEY" | tr -d '\r' > "$dir/key")
+          ssh-keygen -l -f "$dir/key" > /dev/null || { echo "::error::TIDEFELL_READ_KEY is not a usable private key"; exit 1; }
+          printf '%s\n' "$KNOWN_HOSTS" > "$dir/known_hosts"
+          echo "GIT_SSH_COMMAND=ssh -i $dir/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$dir/known_hosts -o StrictHostKeyChecking=yes" >> "$GITHUB_ENV"
       # The always-on check boots VMs, which need KVM inside Nix's build sandbox: the build
       # users, not only the runner's user, must be able to open /dev/kvm.
       - name: KVM in the build sandbox
@@ -46,11 +49,10 @@ jobs:
               args = [ "-c" "if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then echo KVM is usable > $out; else echo /dev/kvm is missing or not accessible to the build user; exit 1; fi" ];
             }'
       - name: Check
-        # Through the environment rather than the installer's extra-conf, which is skipped when
-        # the runner already has Nix.
-        env:
-          NIX_CONFIG: access-tokens = github.com=${{ steps.token.outputs.token }}
         run: nix flake check --print-build-logs
+      - name: Remove the key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/ssh"
 
   # The workflows themselves (ADR 0031): actionlint, and zizmor, whose findings of medium
   # severity or higher fail, so actions stay pinned by commit.
@@ -76,6 +78,6 @@ jobs:
           curl -sfL -o "$RUNNER_TEMP/$name" "https://github.com/rhysd/actionlint/releases/download/v$version/$name"
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/$name" | sha256sum --check --quiet
           tar -xzf "$RUNNER_TEMP/$name" -C "$RUNNER_TEMP" actionlint
-          "$RUNNER_TEMP/actionlint"
+          "$RUNNER_TEMP/actionlint" .forgejo/workflows/*.yml
       - name: zizmor
-        run: zizmor --offline --min-severity medium .
+        run: zizmor --offline --min-severity medium .forgejo/workflows/*.yml
