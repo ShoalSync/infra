@@ -12,7 +12,7 @@ permissions:
 jobs:
   check:
     name: nix flake check
-    runs-on: self-hosted
+    runs-on: ephemeral
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -58,7 +58,7 @@ jobs:
   # severity or higher fail, so actions stay pinned by commit.
   workflows:
     name: Workflows
-    runs-on: self-hosted
+    runs-on: ephemeral
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -78,6 +78,6 @@ jobs:
           curl -sfL -o "$RUNNER_TEMP/$name" "https://github.com/rhysd/actionlint/releases/download/v$version/$name"
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/$name" | sha256sum --check --quiet
           tar -xzf "$RUNNER_TEMP/$name" -C "$RUNNER_TEMP" actionlint
-          "$RUNNER_TEMP/actionlint" .forgejo/workflows/*.yml
+          "$RUNNER_TEMP/actionlint" -config-file .forgejo/actionlint.yaml .forgejo/workflows/*.yml
       - name: zizmor
         run: zizmor --offline --min-severity medium .forgejo/workflows/*.yml
