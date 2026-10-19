@@ -3,8 +3,9 @@
 
   inputs = {
     # The monorepo release this infrastructure runs, from Forgejo over SSH (the repository is
-    # private). Bump the tag deliberately; flake.lock records it.
-    tidefell.url = "git+ssh://git@github.com/ShoalSync/shoal?ref=refs/tags/v0.21.0";
+    # private). Bump the tag deliberately; flake.lock records it. Until the release with storage
+    # peers (Phase 6), main as of their configuration.
+    tidefell.url = "git+ssh://git@github.com/ShoalSync/shoal?ref=refs/tags/v0.22.0";
     # One nixpkgs for everything: the monorepo's pin.
     nixpkgs.follows = "tidefell/nixpkgs";
     # Upstream relay and DNS server sources, built by ./packages.nix.
@@ -55,6 +56,13 @@
             ./roles/replica.nix
           ];
         };
+        # A storage peer: stores encrypted folders for others without reading them (ADR 0023).
+        role-storage-peer = {
+          imports = [
+            self.nixosModules.tidefelld
+            ./roles/storage-peer.nix
+          ];
+        };
         # A self-run always-on peer: full replica, web peer over HTTPS, optional relay.
         role-always-on = {
           imports = [
@@ -90,6 +98,15 @@
           dns = evalRole self.nixosModules.role-dns {
             tidefell.domain = "example.org";
             services.tidefell-dns.publicIPv4 = "203.0.113.10";
+          };
+          storagePeer = evalRole self.nixosModules.role-storage-peer {
+            services.tidefelld.settings.storage.folders = [
+              {
+                id = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+                members = [ "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ];
+                quota_bytes = 1000000000;
+              }
+            ];
           };
           replica = evalRole self.nixosModules.role-replica {
             services.tidefelld.settings.folders = [
@@ -164,6 +181,12 @@
             grep -q 'tidefelld run --config' ${unit replica "tidefelld"}
             touch $out
           '';
+          # The stored folder reaches tidefelld's configuration, checked by tidefelld at build.
+          storage-peer-config = pkgs.runCommand "storage-peer-config-check" { } ''
+            config=$(grep -o '/nix/store/[^ ]*-tidefelld.toml' ${unit storagePeer "tidefelld"} | head -1)
+            grep -q 'quota_bytes = 1000000000' "$config"
+            touch $out
+          '';
           always-on-config =
             assert alwaysOn.services.caddy.enable;
             assert alwaysOn.services.tidefelld.settings.web.bind == "127.0.0.1:8080";
@@ -178,6 +201,13 @@
               ! grep -q 'cert_mode' "$config"
               touch $out
             '';
+          # The exit criterion of Phase 6 (ADR 0023): two devices sync an encrypted folder only
+          # through a storage peer, whose disk holds none of its plaintext; three VMs, needs KVM.
+          storage-peer = import ./tests/storage-peer.nix {
+            inherit pkgs;
+            storagePeer = self.nixosModules.role-storage-peer;
+            tidefelld = self.nixosModules.tidefelld;
+          };
           # The exit criterion of Phase 5: three VMs; needs KVM.
           always-on = import ./tests/always-on.nix {
             inherit pkgs;

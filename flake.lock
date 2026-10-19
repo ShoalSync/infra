@@ -86,16 +86,16 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1792258575,
-        "narHash": "sha256-7hKAtrOohrMoYKDqi5kgnVPR2nDAdFO+R49Emq27hQY=",
-        "ref": "refs/tags/v0.21.0",
-        "rev": "fc699bd4010b9380d54a036dfc34d07b1d4df1ef",
-        "revCount": 246,
+        "lastModified": 1792427381,
+        "narHash": "sha256-4O7C80M+r3NciJppT8hHzl8C3to/5kUWkhHh89oyGtw=",
+        "ref": "refs/tags/v0.22.0",
+        "rev": "3e18e0681fba38c23f9bf148c9c5c4dbe01a19b2",
+        "revCount": 283,
         "type": "git",
         "url": "ssh://git@github.com/ShoalSync/shoal"
       },
       "original": {
-        "ref": "refs/tags/v0.21.0",
+        "ref": "refs/tags/v0.22.0",
         "type": "git",
         "url": "ssh://git@github.com/ShoalSync/shoal"
       }

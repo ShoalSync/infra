@@ -26,7 +26,7 @@ Hosts are NixOS configurations built from this flake (see
 | `packages.<system>.iroh-relay`, `iroh-dns-server` | Upstream servers, from the iroh release in `flake.lock` |
 | `nixosModules.relay`, `dns` | `services.tidefell-relay`, `services.tidefell-dns` |
 | `nixosModules.tidefelld` | The monorepo's `tidefelld` module, from the pinned release |
-| `nixosModules.role-relay`, `role-dns`, `role-replica`, `role-always-on` | Roles to import into a host |
+| `nixosModules.role-relay`, `role-dns`, `role-replica`, `role-always-on`, `role-storage-peer` | Roles to import into a host |
 | `checks.x86_64-linux.*` | Each role evaluated and its units and configuration built |
 | `checks.x86_64-linux.always-on` | Three VMs: a laptop and a phone, never online together, sync through an always-on peer (needs KVM) |
 
@@ -53,6 +53,30 @@ hardware configuration and one or more roles.
 It opens UDP 7777 for sync and TCP 80 and 443 for Caddy, which obtains the certificates.
 Set up its identity, folders and web accounts on the host with `tidefelld` and `tidefell`, as
 the monorepo's always-on guide describes.
+
+### Storage peer
+
+A storage peer keeps encrypted folders for other users without being able to read them (ADR
+0023): it holds no key, only sealed versions and chunks. List the folders it stores, each with
+its members and a quota:
+
+```nix
+{
+  imports = [ infra.nixosModules.role-storage-peer ];
+  services.tidefelld.settings.storage.folders = [
+    {
+      id = "<folder id>";
+      members = [ "<user id>" ];
+      quota_bytes = 100000000000;
+    }
+  ];
+}
+```
+
+Set up its identity with `tidefelld init`; the members add its device ID as a storage peer of
+the folder (`tidefell folder store-with <folder id> <device id>`). `tidefell storage` shows what
+it holds. The `storage-peer` VM test checks that two devices sync through one and that its disk
+holds none of the folder's names or contents.
 
 ## CI
 
