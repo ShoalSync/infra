@@ -1,4 +1,4 @@
-# services.tidefell-relay: a self-hosted iroh relay for Tidefell peers.
+# services.shoal-relay: a self-hosted iroh relay for Shoal peers.
 #
 # `settings` is iroh-relay's TOML configuration. With TLS in LetsEncrypt mode, certificates
 # are stored in the state directory. Ports: TCP 80 (HTTP, ACME), TCP 443 (HTTPS relay),
@@ -12,13 +12,13 @@
   ...
 }:
 let
-  cfg = config.services.tidefell-relay;
+  cfg = config.services.shoal-relay;
   format = pkgs.formats.toml { };
   relay = "${lib.getExe cfg.package} --config-path ${format.generate "iroh-relay.toml" cfg.settings}";
 in
 {
-  options.services.tidefell-relay = {
-    enable = lib.mkEnableOption "the Tidefell (iroh) relay server";
+  options.services.shoal-relay = {
+    enable = lib.mkEnableOption "the Shoal (iroh) relay server";
 
     package = lib.mkOption {
       type = lib.types.package;
@@ -29,14 +29,14 @@ in
 
     hostname = lib.mkOption {
       type = lib.types.str;
-      example = "relay.tidefell.org";
+      example = "relay.shoal.org";
       description = "Public DNS name of the relay; used for its LetsEncrypt certificate.";
     };
 
     acmeContact = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
-      example = "ops@tidefell.org";
+      example = "ops@shoal.org";
       description = "Contact email given to LetsEncrypt.";
     };
 
@@ -75,7 +75,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    services.tidefell-relay.settings = {
+    services.shoal-relay.settings = {
       enable_relay = lib.mkDefault true;
       http_bind_addr = lib.mkDefault "[::]:80";
       enable_quic_addr_discovery = lib.mkDefault cfg.tls.enable;
@@ -92,7 +92,7 @@ in
         https_bind_addr = lib.mkDefault "[::]:443";
         hostname = lib.mkDefault [ cfg.hostname ];
         cert_mode = lib.mkDefault "LetsEncrypt";
-        cert_dir = lib.mkDefault "/var/lib/tidefell-relay/certs";
+        cert_dir = lib.mkDefault "/var/lib/shoal-relay/certs";
         prod_tls = lib.mkDefault true;
       }
       // lib.optionalAttrs (cfg.acmeContact != null) { contact = lib.mkDefault cfg.acmeContact; };
@@ -106,8 +106,8 @@ in
       allowedUDPPorts = [ 7842 ];
     };
 
-    systemd.services.tidefell-relay = {
-      description = "Tidefell relay (iroh-relay)";
+    systemd.services.shoal-relay = {
+      description = "Shoal relay (iroh-relay)";
       wantedBy = [ "multi-user.target" ];
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];
@@ -116,7 +116,7 @@ in
           if cfg.accessTokenFile == null then
             relay
           else
-            pkgs.writeShellScript "tidefell-relay" ''
+            pkgs.writeShellScript "shoal-relay" ''
               set -eu
               IROH_RELAY_ACCESS_TOKEN=$(cat "$CREDENTIALS_DIRECTORY/access-token")
               export IROH_RELAY_ACCESS_TOKEN
@@ -124,8 +124,8 @@ in
             '';
         LoadCredential = lib.optional (cfg.accessTokenFile != null) "access-token:${toString cfg.accessTokenFile}";
         DynamicUser = true;
-        StateDirectory = "tidefell-relay";
-        WorkingDirectory = "/var/lib/tidefell-relay";
+        StateDirectory = "shoal-relay";
+        WorkingDirectory = "/var/lib/shoal-relay";
         AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
         CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
         Restart = "on-failure";

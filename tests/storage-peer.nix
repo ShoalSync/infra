@@ -9,12 +9,12 @@
 {
   pkgs,
   storagePeer,
-  tidefelld,
+  shoald,
 }:
 let
   # A user key made for this test only, and its user ID.
   userKey = pkgs.writeText "user.key" ''
-    tidefell-user-key 1
+    shoal-user-key 1
     7f82bc1b7c2755f5ad1c4128c611d84c8cb95da6b432624419414a37377cbab7
   '';
   user = "439440322e8e8314f1e02c93e78369c46581f678e95dace2c87d0e2a0d0a70f2";
@@ -25,8 +25,8 @@ let
     local_discovery = false;
   };
   device = {
-    imports = [ tidefelld ];
-    services.tidefelld = {
+    imports = [ shoald ];
+    services.shoald = {
       enable = true;
       settings.network = network // {
         bind = "0.0.0.0:7777";
@@ -40,7 +40,7 @@ pkgs.testers.runNixOSTest {
   nodes = {
     storage = {
       imports = [ storagePeer ];
-      services.tidefelld.settings = {
+      services.shoald.settings = {
         inherit network;
         storage.folders = [
           {
@@ -59,12 +59,12 @@ pkgs.testers.runNixOSTest {
     import json
     import re
 
-    DATA = "/var/lib/tidefell"
+    DATA = "/var/lib/shoal"
     PAPERS = f"{DATA}/folders/papers"
     FOLDER = "${folder}"
     # What must never be on the storage peer's disk: the file's name and its contents.
     NAME = "tax-return-2026.txt"
-    SECRET = "tidefell-storage-peer-plaintext-marker"
+    SECRET = "shoal-storage-peer-plaintext-marker"
 
 
     def find(pattern: str, text: str) -> str:
@@ -73,16 +73,16 @@ pkgs.testers.runNixOSTest {
         return found.group(1)
 
 
-    def as_tidefell(machine, command):
-        return machine.succeed(f"runuser -u tidefell -- {command}")
+    def as_shoal(machine, command):
+        return machine.succeed(f"runuser -u shoal -- {command}")
 
 
     def cli(machine, args):
-        return as_tidefell(machine, f"tidefell --data-dir {DATA} {args}")
+        return as_shoal(machine, f"shoal --data-dir {DATA} {args}")
 
 
     def device_id(machine):
-        out = as_tidefell(machine, f"tidefelld id --data-dir {DATA}")
+        out = as_shoal(machine, f"shoald id --data-dir {DATA}")
         return find(r"device: ([0-9a-f]{64})", out)
 
 
@@ -92,13 +92,13 @@ pkgs.testers.runNixOSTest {
 
 
     def online(machine):
-        machine.succeed("systemctl start tidefelld")
+        machine.succeed("systemctl start shoald")
         machine.wait_until_succeeds(f"test -S {DATA}/control.sock")
-        machine.wait_until_succeeds(f"runuser -u tidefell -- tidefell --data-dir {DATA} status")
+        machine.wait_until_succeeds(f"runuser -u shoal -- shoal --data-dir {DATA} status")
 
 
     def offline(machine):
-        machine.succeed("systemctl stop tidefelld")
+        machine.succeed("systemctl stop shoald")
 
 
     def stored(field):
@@ -116,29 +116,29 @@ pkgs.testers.runNixOSTest {
         offline(machine)
 
     with subtest("the storage peer is its operator's; the laptop and the phone are the user's"):
-        as_tidefell(storage, f"tidefelld init --data-dir {DATA} --name storage")
+        as_shoal(storage, f"shoald init --data-dir {DATA} --name storage")
         storage_id = device_id(storage)
         storage_addr = f"{ip(storage)}:7777"
-        laptop.succeed("install -o tidefell -m 600 ${userKey} /tmp/user.key")
-        as_tidefell(laptop, f"tidefelld init --data-dir {DATA} --name laptop --user-key /tmp/user.key")
-        as_tidefell(
+        laptop.succeed("install -o shoal -m 600 ${userKey} /tmp/user.key")
+        as_shoal(laptop, f"shoald init --data-dir {DATA} --name laptop --user-key /tmp/user.key")
+        as_shoal(
             laptop,
-            f"tidefelld certify --user-key /tmp/user.key --device {device_id(phone)}"
+            f"shoald certify --user-key /tmp/user.key --device {device_id(phone)}"
             " --name phone --out /tmp/phone.cert",
         )
         cert = laptop.succeed("base64 -w0 /tmp/phone.cert").strip()
         phone.succeed(f"echo {cert} | base64 -d > /tmp/device.cert && chmod a+r /tmp/device.cert")
-        as_tidefell(phone, f"tidefelld init --data-dir {DATA} --name phone --certificate /tmp/device.cert")
+        as_shoal(phone, f"shoald init --data-dir {DATA} --name phone --certificate /tmp/device.cert")
 
     with subtest("the laptop stores an encrypted folder on the storage peer"):
         online(storage)
         online(laptop)
         cli(laptop, f"peer add {storage_id} --addr {storage_addr}")
         cli(laptop, f"folder join {FOLDER} {PAPERS} --encrypted --storage-peer {storage_id}")
-        as_tidefell(laptop, f"sh -c 'printf %s {SECRET} > {PAPERS}/{NAME}'")
+        as_shoal(laptop, f"sh -c 'printf %s {SECRET} > {PAPERS}/{NAME}'")
         cli(laptop, f"folder scan {FOLDER}")
         storage.wait_until_succeeds(
-            f"runuser -u tidefell -- tidefell --data-dir {DATA} --json storage > /tmp/stored.json"
+            f"runuser -u shoal -- shoal --data-dir {DATA} --json storage > /tmp/stored.json"
             " && grep -Eq '\"versions\": ?1\\b' /tmp/stored.json"
             " && grep -Eq '\"missing_chunks\": ?0\\b' /tmp/stored.json",
             timeout=120,
@@ -158,6 +158,6 @@ pkgs.testers.runNixOSTest {
     with subtest("nothing of the folder is on the storage peer's disk in the clear"):
         offline(storage)
         for plain in (NAME, SECRET):
-            storage.fail(f"grep -rqa {plain} /var/lib/tidefell /var/log /tmp")
+            storage.fail(f"grep -rqa {plain} /var/lib/shoal /var/log /tmp")
   '';
 }

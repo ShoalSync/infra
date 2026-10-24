@@ -1,10 +1,10 @@
-# Role: DNS/pkarr address lookup for Tidefell peers.
+# Role: DNS/pkarr address lookup for Shoal peers.
 { config, lib, ... }:
 {
   imports = [ ../modules/common.nix ];
 
-  config.services.tidefell-dns = {
+  config.services.shoal-dns = {
     enable = true;
-    origin = lib.mkDefault "dns.${config.tidefell.domain}";
+    origin = lib.mkDefault "dns.${config.shoal.domain}";
   };
 }

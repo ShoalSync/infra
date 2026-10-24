@@ -1,13 +1,13 @@
 {
-  description = "Tidefell infrastructure: relay, DNS/pkarr lookup, full replicas and self-run always-on peers";
+  description = "Shoal infrastructure: relay, DNS/pkarr lookup, full replicas and self-run always-on peers";
 
   inputs = {
     # The monorepo release this infrastructure runs, from Forgejo over SSH (the repository is
     # private). Bump the tag deliberately; flake.lock records it. Until the release with storage
     # peers (Phase 6), main as of their configuration.
-    tidefell.url = "git+ssh://git@github.com/ShoalSync/shoal?ref=refs/tags/v0.22.0";
+    shoal.url = "git+ssh://git@github.com/ShoalSync/shoal?ref=refs/tags/v0.24.0-rc.1";
     # One nixpkgs for everything: the monorepo's pin.
-    nixpkgs.follows = "tidefell/nixpkgs";
+    nixpkgs.follows = "shoal/nixpkgs";
     # Upstream relay and DNS server sources, built by ./packages.nix.
     iroh = {
       url = "github:n0-computer/iroh/v1.2.0";
@@ -19,7 +19,7 @@
     {
       self,
       nixpkgs,
-      tidefell,
+      shoal,
       iroh,
     }:
     let
@@ -36,7 +36,7 @@
       nixosModules = {
         relay = import ./modules/relay.nix { relayPackage = pkgs: (packagesFor pkgs).iroh-relay; };
         dns = import ./modules/dns.nix { dnsPackage = pkgs: (packagesFor pkgs).iroh-dns-server; };
-        tidefelld = tidefell.nixosModules.tidefelld;
+        shoald = shoal.nixosModules.shoald;
         # Roles, to import from a host's configuration alongside its hardware configuration.
         role-relay = {
           imports = [
@@ -52,14 +52,14 @@
         };
         role-replica = {
           imports = [
-            self.nixosModules.tidefelld
+            self.nixosModules.shoald
             ./roles/replica.nix
           ];
         };
         # A storage peer: stores encrypted folders for others without reading them (ADR 0023).
         role-storage-peer = {
           imports = [
-            self.nixosModules.tidefelld
+            self.nixosModules.shoald
             ./roles/storage-peer.nix
           ];
         };
@@ -67,7 +67,7 @@
         role-always-on = {
           imports = [
             self.nixosModules.relay
-            self.nixosModules.tidefelld
+            self.nixosModules.shoald
             ./roles/always-on.nix
           ];
         };
@@ -92,15 +92,15 @@
               ];
             }).config;
           relay = evalRole self.nixosModules.role-relay {
-            tidefell.domain = "example.org";
-            services.tidefell-relay.acmeContact = "ops@example.org";
+            shoal.domain = "example.org";
+            services.shoal-relay.acmeContact = "ops@example.org";
           };
           dns = evalRole self.nixosModules.role-dns {
-            tidefell.domain = "example.org";
-            services.tidefell-dns.publicIPv4 = "203.0.113.10";
+            shoal.domain = "example.org";
+            services.shoal-dns.publicIPv4 = "203.0.113.10";
           };
           storagePeer = evalRole self.nixosModules.role-storage-peer {
-            services.tidefelld.settings.storage.folders = [
+            services.shoald.settings.storage.folders = [
               {
                 id = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
                 members = [ "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ];
@@ -109,17 +109,17 @@
             ];
           };
           replica = evalRole self.nixosModules.role-replica {
-            services.tidefelld.settings.folders = [
+            services.shoald.settings.folders = [
               {
                 id = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
-                path = "/srv/tidefell/photos";
+                path = "/srv/shoal/photos";
                 members = [ "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ];
                 retention_days = 30;
               }
             ];
           };
           alwaysOn = evalRole self.nixosModules.role-always-on {
-            tidefell = {
+            shoal = {
               domain = "example.org";
               alwaysOn.relay.enable = true;
               alwaysOn.web.shareLinks = true;
@@ -145,8 +145,8 @@
           relay =
             assert relay.networking.firewall.allowedUDPPorts == [ 7842 ];
             pkgs.runCommand "relay-check" { } ''
-              grep -q 'iroh-relay --config-path' ${unit relay "tidefell-relay"}
-              config=$(grep -o '/nix/store/[^ ]*-iroh-relay.toml' ${unit relay "tidefell-relay"})
+              grep -q 'iroh-relay --config-path' ${unit relay "shoal-relay"}
+              config=$(grep -o '/nix/store/[^ ]*-iroh-relay.toml' ${unit relay "shoal-relay"})
               grep -q 'relay.example.org' "$config"
               grep -q 'ops@example.org' "$config"
               touch $out
@@ -155,48 +155,48 @@
           relay-token =
             let
               tokened = evalRole self.nixosModules.role-relay {
-                tidefell.domain = "example.org";
-                services.tidefell-relay.accessTokenFile = "/run/secrets/relay-token";
+                shoal.domain = "example.org";
+                services.shoal-relay.accessTokenFile = "/run/secrets/relay-token";
               };
             in
-            assert tokened.systemd.services.tidefell-relay.serviceConfig.LoadCredential == [
+            assert tokened.systemd.services.shoal-relay.serviceConfig.LoadCredential == [
               "access-token:/run/secrets/relay-token"
             ];
             pkgs.runCommand "relay-token-check" { } ''
-              unit=${unit tokened "tidefell-relay"}
-              script=$(grep -o '/nix/store/[^ ]*-tidefell-relay' "$unit" | head -n 1)
+              unit=${unit tokened "shoal-relay"}
+              script=$(grep -o '/nix/store/[^ ]*-shoal-relay' "$unit" | head -n 1)
               grep -q 'CREDENTIALS_DIRECTORY/access-token' "$script"
               config=$(grep -o '/nix/store/[^ ]*-iroh-relay.toml' "$script")
               grep -q 'shared_token = \[\]' "$config"
               touch $out
             '';
           dns = pkgs.runCommand "dns-check" { } ''
-            grep -q 'iroh-dns-server --config' ${unit dns "tidefell-dns"}
-            config=$(grep -o '/nix/store/[^ ]*-iroh-dns-server.toml' ${unit dns "tidefell-dns"})
+            grep -q 'iroh-dns-server --config' ${unit dns "shoal-dns"}
+            config=$(grep -o '/nix/store/[^ ]*-iroh-dns-server.toml' ${unit dns "shoal-dns"})
             grep -q 'dns.example.org' "$config"
             grep -q '203.0.113.10' "$config"
             touch $out
           '';
           replica = pkgs.runCommand "replica-check" { } ''
-            grep -q 'tidefelld run --config' ${unit replica "tidefelld"}
+            grep -q 'shoald run --config' ${unit replica "shoald"}
             touch $out
           '';
-          # The stored folder reaches tidefelld's configuration, checked by tidefelld at build.
+          # The stored folder reaches shoald's configuration, checked by shoald at build.
           storage-peer-config = pkgs.runCommand "storage-peer-config-check" { } ''
-            config=$(grep -o '/nix/store/[^ ]*-tidefelld.toml' ${unit storagePeer "tidefelld"} | head -1)
+            config=$(grep -o '/nix/store/[^ ]*-shoald.toml' ${unit storagePeer "shoald"} | head -1)
             grep -q 'quota_bytes = 1000000000' "$config"
             touch $out
           '';
           always-on-config =
             assert alwaysOn.services.caddy.enable;
-            assert alwaysOn.services.tidefelld.settings.web.bind == "127.0.0.1:8080";
-            assert alwaysOn.services.tidefelld.settings.web.share_links;
-            assert alwaysOn.services.tidefelld.settings.network.relay.urls == [ "https://relay.example.org" ];
+            assert alwaysOn.services.shoald.settings.web.bind == "127.0.0.1:8080";
+            assert alwaysOn.services.shoald.settings.web.share_links;
+            assert alwaysOn.services.shoald.settings.network.relay.urls == [ "https://relay.example.org" ];
             assert builtins.elem 443 alwaysOn.networking.firewall.allowedTCPPorts;
             assert builtins.elem 7777 alwaysOn.networking.firewall.allowedUDPPorts;
             pkgs.runCommand "always-on-config-check" { } ''
-              grep -q 'tidefelld run --config' ${unit alwaysOn "tidefelld"}
-              config=$(grep -o '/nix/store/[^ ]*-iroh-relay.toml' ${unit alwaysOn "tidefell-relay"})
+              grep -q 'shoald run --config' ${unit alwaysOn "shoald"}
+              config=$(grep -o '/nix/store/[^ ]*-iroh-relay.toml' ${unit alwaysOn "shoal-relay"})
               grep -q '127.0.0.1:3340' "$config"
               ! grep -q 'cert_mode' "$config"
               touch $out
@@ -206,19 +206,19 @@
           storage-peer = import ./tests/storage-peer.nix {
             inherit pkgs;
             storagePeer = self.nixosModules.role-storage-peer;
-            tidefelld = self.nixosModules.tidefelld;
+            shoald = self.nixosModules.shoald;
           };
           # The exit criterion of Phase 5: three VMs; needs KVM.
           always-on = import ./tests/always-on.nix {
             inherit pkgs;
             alwaysOn = self.nixosModules.role-always-on;
-            tidefelld = self.nixosModules.tidefelld;
+            shoald = self.nixosModules.shoald;
           };
           # A phone behind NAT backs up to a server directly and through the relay (ADR 0039);
           # three VMs, needs KVM.
           nat-backup = import ./tests/nat-backup.nix {
             inherit pkgs;
-            tidefelld = self.nixosModules.tidefelld;
+            shoald = self.nixosModules.shoald;
             relay = self.nixosModules.relay;
           };
           # The binaries run and report their versions.

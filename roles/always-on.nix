@@ -5,18 +5,18 @@
 # replica. Optionally it serves the web peer over HTTPS and a relay, both behind Caddy, which
 # obtains their certificates.
 #
-# Identity, folders and web accounts are set up on the host with `tidefelld` and `tidefell`;
+# Identity, folders and web accounts are set up on the host with `shoald` and `shoal`;
 # see the always-on guide in the monorepo docs.
 { config, lib, ... }:
 let
-  cfg = config.tidefell.alwaysOn;
-  domain = config.tidefell.domain;
+  cfg = config.shoal.alwaysOn;
+  domain = config.shoal.domain;
   proxied = (cfg.web.enable && cfg.web.tls) || cfg.relay.enable;
 in
 {
   imports = [ ../modules/common.nix ];
 
-  options.tidefell.alwaysOn = {
+  options.shoal.alwaysOn = {
     port = lib.mkOption {
       type = lib.types.port;
       default = 7777;
@@ -27,14 +27,14 @@ in
       enable = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Serve the web peer at `https://<tidefell.domain>`.";
+        description = "Serve the web peer at `https://<shoal.domain>`.";
       };
       tls = lib.mkOption {
         type = lib.types.bool;
         default = true;
         description = ''
           Put the web peer behind Caddy with an automatic HTTPS certificate for
-          `tidefell.domain`. Turn off only for testing: the web peer then listens on
+          `shoal.domain`. Turn off only for testing: the web peer then listens on
           127.0.0.1:8080 without TLS.
         '';
       };
@@ -51,7 +51,7 @@ in
       type = lib.types.bool;
       default = false;
       description = ''
-        Also run a relay at `https://relay.<tidefell.domain>`, behind Caddy, and have this
+        Also run a relay at `https://relay.<shoal.domain>`, behind Caddy, and have this
         peer use it. Other devices use it by listing it in their `network.relay` settings.
       '';
     };
@@ -71,7 +71,7 @@ in
         type = lib.types.bool;
         default = false;
         description = ''
-          Serve tidefelld's Prometheus metrics on `127.0.0.1:<port>` and scrape them with this
+          Serve shoald's Prometheus metrics on `127.0.0.1:<port>` and scrape them with this
           host's Prometheus (`services.prometheus`), if it runs (ADR 0030). The endpoint has no
           authentication, so it stays on loopback.
         '';
@@ -79,7 +79,7 @@ in
       port = lib.mkOption {
         type = lib.types.port;
         default = 9477;
-        description = "Loopback TCP port tidefelld serves `/metrics` on.";
+        description = "Loopback TCP port shoald serves `/metrics` on.";
       };
     };
 
@@ -93,7 +93,7 @@ in
 
   config = lib.mkMerge [
     {
-      services.tidefelld = {
+      services.shoald = {
         enable = true;
         openFirewall = true;
         settings.network.bind = lib.mkDefault "0.0.0.0:${toString cfg.port}";
@@ -101,7 +101,7 @@ in
     }
 
     (lib.mkIf cfg.web.enable {
-      services.tidefelld.settings.web = {
+      services.shoald.settings.web = {
         bind = "127.0.0.1:8080";
         secure_cookies = cfg.web.tls;
       }
@@ -115,10 +115,10 @@ in
     })
 
     (lib.mkIf cfg.metrics.enable {
-      services.tidefelld.settings.metrics.listen = "127.0.0.1:${toString cfg.metrics.port}";
+      services.shoald.settings.metrics.listen = "127.0.0.1:${toString cfg.metrics.port}";
       services.prometheus.scrapeConfigs = [
         {
-          job_name = "tidefelld";
+          job_name = "shoald";
           static_configs = [ { targets = [ "127.0.0.1:${toString cfg.metrics.port}" ]; } ];
         }
       ];
@@ -126,7 +126,7 @@ in
 
     (lib.mkIf cfg.relay.enable {
       services = {
-        tidefell-relay = {
+        shoal-relay = {
           enable = true;
           hostname = "relay.${domain}";
           tls.enable = false;
@@ -134,11 +134,11 @@ in
           settings.http_bind_addr = "127.0.0.1:3340";
           inherit (cfg.relay) accessTokenFile;
         };
-        tidefelld.relayTokenFile = cfg.relay.accessTokenFile;
+        shoald.relayTokenFile = cfg.relay.accessTokenFile;
         caddy.virtualHosts."relay.${domain}".extraConfig = ''
           reverse_proxy 127.0.0.1:3340
         '';
-        tidefelld.settings.network.relay = {
+        shoald.settings.network.relay = {
           mode = "custom";
           urls = [ "https://relay.${domain}" ];
         };

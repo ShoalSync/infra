@@ -52,16 +52,16 @@
       "inputs": {
         "iroh": "iroh",
         "nixpkgs": [
-          "tidefell",
+          "shoal",
           "nixpkgs"
         ],
-        "tidefell": "tidefell"
+        "shoal": "shoal"
       }
     },
     "rust-overlay": {
       "inputs": {
         "nixpkgs": [
-          "tidefell",
+          "shoal",
           "nixpkgs"
         ]
       },
@@ -79,23 +79,23 @@
         "type": "github"
       }
     },
-    "tidefell": {
+    "shoal": {
       "inputs": {
         "crane": "crane",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1792427381,
-        "narHash": "sha256-4O7C80M+r3NciJppT8hHzl8C3to/5kUWkhHh89oyGtw=",
-        "ref": "refs/tags/v0.22.0",
-        "rev": "3e18e0681fba38c23f9bf148c9c5c4dbe01a19b2",
-        "revCount": 283,
+        "lastModified": 1792858907,
+        "narHash": "sha256-dip51l449WlIrlhDSf27brrpAWC15274IB5VpDbYhH8=",
+        "ref": "refs/tags/v0.24.0-rc.1",
+        "rev": "f4685a2fe65040413797f4d465441a92d20afe77",
+        "revCount": 321,
         "type": "git",
         "url": "ssh://git@github.com/ShoalSync/shoal"
       },
       "original": {
-        "ref": "refs/tags/v0.22.0",
+        "ref": "refs/tags/v0.24.0-rc.1",
         "type": "git",
         "url": "ssh://git@github.com/ShoalSync/shoal"
       }

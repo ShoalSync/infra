@@ -18,7 +18,7 @@ jobs:
         with:
           persist-credentials: false
       # The monorepo is private: Nix fetches the pinned release over SSH with a deploy key that
-      # can only read tidefell/tidefell, against Forgejo's pinned host key.
+      # can only read shoal/shoal, against Forgejo's pinned host key.
       - name: Key for the monorepo
         env:
           TIDEFELL_READ_KEY: ${{ secrets.TIDEFELL_READ_KEY }}
@@ -81,3 +81,6 @@ jobs:
           "$RUNNER_TEMP/actionlint" -config-file .forgejo/actionlint.yaml .forgejo/workflows/*.yml
       - name: zizmor
         run: zizmor --offline --min-severity medium .forgejo/workflows/*.yml
+      # The old name stays out of the tree (ADR 0043 in the monorepo).
+      - name: The old name stays out
+        run: scripts/check-old-name.sh

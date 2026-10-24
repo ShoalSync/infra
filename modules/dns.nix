@@ -1,4 +1,4 @@
-# services.tidefell-dns: a self-hosted iroh DNS/pkarr server for address lookup.
+# services.shoal-dns: a self-hosted iroh DNS/pkarr server for address lookup.
 #
 # `settings` is iroh-dns-server's TOML configuration. Ports: UDP and TCP 53 (DNS), TCP 80 and
 # 443 (pkarr publishing over HTTP(S), ACME).
@@ -10,12 +10,12 @@
   ...
 }:
 let
-  cfg = config.services.tidefell-dns;
+  cfg = config.services.shoal-dns;
   format = pkgs.formats.toml { };
 in
 {
-  options.services.tidefell-dns = {
-    enable = lib.mkEnableOption "the Tidefell (iroh) DNS and pkarr server";
+  options.services.shoal-dns = {
+    enable = lib.mkEnableOption "the Shoal (iroh) DNS and pkarr server";
 
     package = lib.mkOption {
       type = lib.types.package;
@@ -26,7 +26,7 @@ in
 
     origin = lib.mkOption {
       type = lib.types.str;
-      example = "dns.tidefell.org";
+      example = "dns.shoal.org";
       description = "DNS zone the server is authoritative for; also its HTTPS hostname.";
     };
 
@@ -39,7 +39,7 @@ in
     acmeContact = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
-      example = "ops@tidefell.org";
+      example = "ops@shoal.org";
       description = "Contact email given to LetsEncrypt.";
     };
 
@@ -57,9 +57,9 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    services.tidefell-dns.settings = {
+    services.shoal-dns.settings = {
       pkarr_put_rate_limit = lib.mkDefault "smart";
-      data_dir = lib.mkDefault "/var/lib/tidefell-dns";
+      data_dir = lib.mkDefault "/var/lib/shoal-dns";
       http = {
         port = lib.mkDefault 80;
         bind_addr = lib.mkDefault "::";
@@ -98,16 +98,16 @@ in
       allowedUDPPorts = [ 53 ];
     };
 
-    systemd.services.tidefell-dns = {
-      description = "Tidefell DNS and pkarr server (iroh-dns-server)";
+    systemd.services.shoal-dns = {
+      description = "Shoal DNS and pkarr server (iroh-dns-server)";
       wantedBy = [ "multi-user.target" ];
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];
       serviceConfig = {
         ExecStart = "${lib.getExe cfg.package} --config ${format.generate "iroh-dns-server.toml" cfg.settings}";
         DynamicUser = true;
-        StateDirectory = "tidefell-dns";
-        WorkingDirectory = "/var/lib/tidefell-dns";
+        StateDirectory = "shoal-dns";
+        WorkingDirectory = "/var/lib/shoal-dns";
         AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
         CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
         Restart = "on-failure";
