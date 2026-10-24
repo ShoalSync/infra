@@ -1,10 +1,10 @@
-# Role: public relay for Tidefell peers.
+# Role: public relay for Shoal peers.
 { config, lib, ... }:
 {
   imports = [ ../modules/common.nix ];
 
-  config.services.tidefell-relay = {
+  config.services.shoal-relay = {
     enable = true;
-    hostname = lib.mkDefault "relay.${config.tidefell.domain}";
+    hostname = lib.mkDefault "relay.${config.shoal.domain}";
   };
 }

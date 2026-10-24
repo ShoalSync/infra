@@ -9,7 +9,7 @@
 # everything goes through the relay, as on many mobile networks.
 {
   pkgs,
-  tidefelld,
+  shoald,
   # The infra relay module.
   relay,
 }:
@@ -61,7 +61,7 @@ pkgs.testers.runNixOSTest {
         environment.systemPackages = [ pkgs.nftables ];
         # The infra relay module, as on an always-on peer: plain HTTP, which a proxy would
         # wrap in TLS.
-        services.tidefell-relay = {
+        services.shoal-relay = {
           enable = true;
           hostname = "router";
           tls.enable = false;
@@ -77,12 +77,12 @@ pkgs.testers.runNixOSTest {
       { nodes, ... }:
       {
         imports = [
-          tidefelld
+          shoald
           token
         ];
         virtualisation.vlans = [ 1 ];
         networking.firewall.allowedUDPPorts = [ 7777 ];
-        services.tidefelld = {
+        services.shoald = {
           enable = true;
           relayTokenFile = tokenFile;
           settings.network = network nodes // {
@@ -94,7 +94,7 @@ pkgs.testers.runNixOSTest {
       { nodes, lib, ... }:
       {
         imports = [
-          tidefelld
+          shoald
           token
         ];
         virtualisation.vlans = [ 2 ];
@@ -106,7 +106,7 @@ pkgs.testers.runNixOSTest {
           # Only the router's networks: no route to the server but through the router.
           useDHCP = false;
         };
-        services.tidefelld = {
+        services.shoald = {
           enable = true;
           relayTokenFile = tokenFile;
           settings.network = network nodes;
@@ -124,7 +124,7 @@ pkgs.testers.runNixOSTest {
       import re
       import time
 
-      DATA = "/var/lib/tidefell"
+      DATA = "/var/lib/shoal"
       CAMERA = f"{DATA}/folders/camera"
       RELAY = "http://${routerOutside}:3340"
       PHOTO_BYTES = 5 * 1024 * 1024
@@ -137,23 +137,23 @@ pkgs.testers.runNixOSTest {
           return found.group(1)
 
 
-      def as_tidefell(machine, command):
-          return machine.succeed(f"runuser -u tidefell -- {command}")
+      def as_shoal(machine, command):
+          return machine.succeed(f"runuser -u shoal -- {command}")
 
 
       def cli(machine, args):
-          return as_tidefell(machine, f"tidefell --data-dir {DATA} {args}")
+          return as_shoal(machine, f"shoal --data-dir {DATA} {args}")
 
 
       def device_id(machine):
-          out = as_tidefell(machine, f"tidefelld id --data-dir {DATA}")
+          out = as_shoal(machine, f"shoald id --data-dir {DATA}")
           return find(r"device: ([0-9a-f]{64})", out)
 
 
       def online(machine):
-          machine.succeed("systemctl start tidefelld")
+          machine.succeed("systemctl start shoald")
           machine.wait_until_succeeds(f"test -S {DATA}/control.sock")
-          machine.wait_until_succeeds(f"runuser -u tidefell -- tidefell --data-dir {DATA} status")
+          machine.wait_until_succeeds(f"runuser -u shoal -- shoal --data-dir {DATA} status")
 
 
       def arrived(batch, want):
@@ -165,11 +165,11 @@ pkgs.testers.runNixOSTest {
 
       def take_photos(batch, photos):
           stage = f"{DATA}/stage-{batch}"
-          as_tidefell(phone, f"mkdir -p {stage}")
+          as_shoal(phone, f"mkdir -p {stage}")
           for i in range(photos):
-              as_tidefell(phone, f"sh -c 'head -c {PHOTO_BYTES} /dev/urandom > {stage}/IMG_{batch}_{i}.jpg'")
+              as_shoal(phone, f"sh -c 'head -c {PHOTO_BYTES} /dev/urandom > {stage}/IMG_{batch}_{i}.jpg'")
           # Moved in at once, as a camera adds a finished photo; the phone's scan finds them.
-          as_tidefell(phone, f"sh -c 'mv {stage}/* {CAMERA}/'")
+          as_shoal(phone, f"sh -c 'mv {stage}/* {CAMERA}/'")
 
 
       def backup(batch, limit):
@@ -184,26 +184,26 @@ pkgs.testers.runNixOSTest {
 
 
       start_all()
-      router.wait_for_unit("tidefell-relay.service")
+      router.wait_for_unit("shoal-relay.service")
       # Hardened: systemd rates the relay's exposure low (0 to 10, lower is better).
-      exposure = router.succeed("systemd-analyze security tidefell-relay.service | tail -n 1")
+      exposure = router.succeed("systemd-analyze security shoal-relay.service | tail -n 1")
       print(exposure)
       assert float(find(r"exposure level for \S+: ([0-9.]+)", exposure)) <= 2.0, exposure
       for machine in (server, phone):
           machine.wait_for_unit("multi-user.target")
-          machine.succeed("systemctl stop tidefelld")
+          machine.succeed("systemctl stop shoald")
 
       with subtest("the server certifies the phone, which cannot be reached from outside"):
-          as_tidefell(server, f"tidefelld init --data-dir {DATA} --name server")
+          as_shoal(server, f"shoald init --data-dir {DATA} --name server")
           server_id = device_id(server)
-          as_tidefell(
+          as_shoal(
               server,
-              f"tidefelld certify --user-key {DATA}/user.key --device {device_id(phone)}"
+              f"shoald certify --user-key {DATA}/user.key --device {device_id(phone)}"
               " --name phone --out /tmp/phone.cert",
           )
           cert = server.succeed("base64 -w0 /tmp/phone.cert").strip()
           phone.succeed(f"echo {cert} | base64 -d > /tmp/device.cert && chmod a+r /tmp/device.cert")
-          as_tidefell(phone, f"tidefelld init --data-dir {DATA} --name phone --certificate /tmp/device.cert")
+          as_shoal(phone, f"shoald init --data-dir {DATA} --name phone --certificate /tmp/device.cert")
           phone_ip = find(r"inet ([0-9.]+)/", phone.succeed("ip -4 -o addr show dev eth1"))
           server.fail(f"ping -c 1 -W 2 {phone_ip}")
 
@@ -215,7 +215,7 @@ pkgs.testers.runNixOSTest {
           cli(phone, f"peer add {server_id} --addr {server_ip}:7777 --relay {RELAY}")
           cli(phone, f"folder join {folder} {CAMERA} --direction send-only")
           server.wait_until_succeeds(
-              f"runuser -u tidefell -- tidefell --data-dir {DATA} status | grep -q 'connected'"
+              f"runuser -u shoal -- shoal --data-dir {DATA} status | grep -q 'connected'"
           )
 
       with subtest("photos taken on the phone reach the server within a minute"):
@@ -231,19 +231,19 @@ pkgs.testers.runNixOSTest {
 
       with subtest("a phone with the wrong token gets nothing through the relay"):
           phone.succeed("echo not-the-token > ${tokenFile}")
-          phone.succeed("systemctl restart tidefelld")
-          phone.wait_until_succeeds(f"runuser -u tidefell -- tidefell --data-dir {DATA} status")
+          phone.succeed("systemctl restart shoald")
+          phone.wait_until_succeeds(f"runuser -u shoal -- shoal --data-dir {DATA} status")
           take_photos("refused", 1)
           time.sleep(60)
           server.fail(arrived("refused", 1))
 
       with subtest("with the right one it gets through again"):
           phone.succeed("echo relay-test-token > ${tokenFile}")
-          phone.succeed("systemctl restart tidefelld")
+          phone.succeed("systemctl restart shoald")
           server.wait_until_succeeds(arrived("refused", PHOTO_BYTES), timeout=180)
 
       with subtest("the daemon is sandboxed"):
-          exposure = server.succeed("systemd-analyze security tidefelld.service | tail -n 1")
+          exposure = server.succeed("systemd-analyze security shoald.service | tail -n 1")
           print(exposure)
           assert float(find(r"exposure level for \S+: ([0-9.]+)", exposure)) <= 2.0, exposure
     '';

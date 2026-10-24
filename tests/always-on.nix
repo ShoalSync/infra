@@ -6,7 +6,7 @@
 {
   pkgs,
   alwaysOn,
-  tidefelld,
+  shoald,
 }:
 let
   network = {
@@ -14,8 +14,8 @@ let
     address_lookup = false;
   };
   device = {
-    imports = [ tidefelld ];
-    services.tidefelld = {
+    imports = [ shoald ];
+    services.shoald = {
       enable = true;
       settings.network = network // {
         bind = "0.0.0.0:7777";
@@ -30,15 +30,15 @@ pkgs.testers.runNixOSTest {
     server = {
       imports = [ alwaysOn ];
       environment.systemPackages = [ pkgs.curl ];
-      tidefell = {
+      shoal = {
         domain = "server.test";
         # No certificates in the test network: the web peer answers on localhost.
         alwaysOn.web.tls = false;
-        # Prometheus scrapes tidefelld's metrics (ADR 0030).
+        # Prometheus scrapes shoald's metrics (ADR 0030).
         alwaysOn.metrics.enable = true;
       };
       services = {
-        tidefelld.settings.network = network;
+        shoald.settings.network = network;
         prometheus = {
           enable = true;
           globalConfig.scrape_interval = "1s";
@@ -53,7 +53,7 @@ pkgs.testers.runNixOSTest {
     import json
     import re
 
-    DATA = "/var/lib/tidefell"
+    DATA = "/var/lib/shoal"
     PHOTOS = f"{DATA}/folders/photos"
 
 
@@ -63,16 +63,16 @@ pkgs.testers.runNixOSTest {
         return found.group(1)
 
 
-    def as_tidefell(machine, command):
-        return machine.succeed(f"runuser -u tidefell -- {command}")
+    def as_shoal(machine, command):
+        return machine.succeed(f"runuser -u shoal -- {command}")
 
 
     def cli(machine, args):
-        return as_tidefell(machine, f"tidefell --data-dir {DATA} {args}")
+        return as_shoal(machine, f"shoal --data-dir {DATA} {args}")
 
 
     def device_id(machine):
-        out = as_tidefell(machine, f"tidefelld id --data-dir {DATA}")
+        out = as_shoal(machine, f"shoald id --data-dir {DATA}")
         return find(r"device: ([0-9a-f]{64})", out)
 
 
@@ -82,20 +82,20 @@ pkgs.testers.runNixOSTest {
 
 
     def online(machine):
-        machine.succeed("systemctl start tidefelld")
+        machine.succeed("systemctl start shoald")
         machine.wait_until_succeeds(f"test -S {DATA}/control.sock")
-        machine.wait_until_succeeds(f"runuser -u tidefell -- tidefell --data-dir {DATA} status")
+        machine.wait_until_succeeds(f"runuser -u shoal -- shoal --data-dir {DATA} status")
 
 
     def offline(machine):
-        machine.succeed("systemctl stop tidefelld")
+        machine.succeed("systemctl stop shoald")
 
 
     PHOTO_BYTES = 32 * 1024 * 1024
 
 
     def write(machine, name, contents):
-        as_tidefell(machine, f"sh -c 'printf %s \"{contents}\" > {PHOTOS}/{name}'")
+        as_shoal(machine, f"sh -c 'printf %s \"{contents}\" > {PHOTOS}/{name}'")
 
 
     start_all()
@@ -105,17 +105,17 @@ pkgs.testers.runNixOSTest {
         offline(machine)
 
     with subtest("one user: the always-on peer certifies the laptop and the phone"):
-        as_tidefell(server, f"tidefelld init --data-dir {DATA} --name server")
+        as_shoal(server, f"shoald init --data-dir {DATA} --name server")
         server_id = device_id(server)
         for machine, name in ((laptop, "laptop"), (phone, "phone")):
-            as_tidefell(
+            as_shoal(
                 server,
-                f"tidefelld certify --user-key {DATA}/user.key --device {device_id(machine)}"
+                f"shoald certify --user-key {DATA}/user.key --device {device_id(machine)}"
                 f" --name {name} --out /tmp/{name}.cert",
             )
             cert = server.succeed(f"base64 -w0 /tmp/{name}.cert").strip()
             machine.succeed(f"echo {cert} | base64 -d > /tmp/device.cert && chmod a+r /tmp/device.cert")
-            as_tidefell(machine, f"tidefelld init --data-dir {DATA} --name {name} --certificate /tmp/device.cert")
+            as_shoal(machine, f"shoald init --data-dir {DATA} --name {name} --certificate /tmp/device.cert")
         server_addr = f"{ip(server)}:7777"
 
     with subtest("the always-on peer holds the folder"):
@@ -129,7 +129,7 @@ pkgs.testers.runNixOSTest {
         cli(laptop, f"folder join {folder} {PHOTOS}")
         # Large enough that the transfer outlasts the connection's move from the relay, which it
         # starts on, to the direct path on the local network.
-        as_tidefell(laptop, f"sh -c 'head -c {PHOTO_BYTES} /dev/urandom > {PHOTOS}/beach.jpg'")
+        as_shoal(laptop, f"sh -c 'head -c {PHOTO_BYTES} /dev/urandom > {PHOTOS}/beach.jpg'")
         photo = laptop.succeed(f"sha256sum < {PHOTOS}/beach.jpg").split()[0]
         cli(laptop, f"folder scan {folder}")
         server.wait_until_succeeds(f"sha256sum < {PHOTOS}/beach.jpg | grep -q {photo}")
@@ -149,14 +149,14 @@ pkgs.testers.runNixOSTest {
 
         server.wait_until_succeeds(
             "curl -sf http://127.0.0.1:9090/api/v1/query --data-urlencode "
-            "'query=up{job=\"tidefelld\"} == 1' | grep -q tidefelld"
+            "'query=up{job=\"shoald\"} == 1' | grep -q shoald"
         )
 
 
         def counted(_):
             received = {
                 r["metric"]["network"]: float(r["value"][1])
-                for r in query("tidefell_content_received_bytes_total")
+                for r in query("shoal_content_received_bytes_total")
             }
             # All of it, and on the local network once the path there was found.
             return received.get("local", 0) > 0 and sum(received.values()) >= PHOTO_BYTES
@@ -169,7 +169,7 @@ pkgs.testers.runNixOSTest {
         cli(phone, f"peer add {server_id} --addr {server_addr}")
         cli(phone, f"folder join {folder} {PHOTOS} --partial 100000000")
         phone.wait_until_succeeds(
-            f"runuser -u tidefell -- tidefell --data-dir {DATA} files {folder} | grep -q beach.jpg"
+            f"runuser -u shoal -- shoal --data-dir {DATA} files {folder} | grep -q beach.jpg"
         )
         local = cli(phone, f"fetch {folder} beach.jpg").strip()
         phone.succeed(f"sha256sum < {local} | grep -q {photo}")
