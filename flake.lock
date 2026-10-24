@@ -87,17 +87,17 @@
       },
       "locked": {
         "lastModified": 1792858907,
-        "narHash": "sha256-dip51l449WlIrlhDSf27brrpAWC15274IB5VpDbYhH8=",
-        "ref": "refs/tags/v0.24.0-rc.1",
-        "rev": "f4685a2fe65040413797f4d465441a92d20afe77",
-        "revCount": 321,
-        "type": "git",
-        "url": "ssh://git@github.com/ShoalSync/shoal"
+        "narHash": "sha256-+uUU55VpUzB2GG8/d6kS6qqhyTBb80dbE+2KVnP8y7o=",
+        "owner": "ShoalSync",
+        "repo": "shoal",
+        "rev": "99c6be0c1eff90094e2be526754c246fe2131e5b",
+        "type": "github"
       },
       "original": {
-        "ref": "refs/tags/v0.24.0-rc.1",
-        "type": "git",
-        "url": "ssh://git@github.com/ShoalSync/shoal"
+        "owner": "ShoalSync",
+        "ref": "v0.24.0-rc.1",
+        "repo": "shoal",
+        "type": "github"
       }
     }
   },

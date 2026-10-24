@@ -82,10 +82,9 @@ holds none of the folder's names or contents.
 
 ## CI
 
-`nix flake check` runs on Forgejo for every pull request and push to `main`
-(`.forgejo/workflows/`). It includes the always-on VM test, so the runner needs KVM. The monorepo
-is private, so Nix fetches it over SSH with `TIDEFELL_READ_KEY`, an organisation secret holding a
-deploy key that can only read `shoal/shoal`. Locally, any key that can read it will do.
+`nix flake check` runs on GitHub's hosted runners for every pull request and push to `main`
+(`.github/workflows/`). It includes the NixOS VM tests, so the runner needs KVM, which the hosted
+Linux runners have. Nix fetches the pinned monorepo release from GitHub.
 
 ## Secrets
 

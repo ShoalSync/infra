@@ -1,6 +1,0 @@
-# Labels of the shoal org's runners, for actionlint: the container runners (`ephemeral`, one
-# job per runner, and `docker`).
-self-hosted-runner:
-  labels:
-    - docker
-    - ephemeral
