@@ -1,0 +1,4 @@
+# actionlint's configuration. Every job runs on GitHub's hosted runners (ADR 0045 in the
+# monorepo), whose labels actionlint knows, so there are no runner labels of the project's own.
+self-hosted-runner:
+  labels: []

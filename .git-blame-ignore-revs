@@ -1,0 +1,4 @@
+# The mechanical rename from the old name to Shoal (ADR 0043 in the monorepo): `git blame`
+# skips it with `git config blame.ignoreRevsFile .git-blame-ignore-revs`; GitHub reads this
+# file itself.
+55034e0a8217279b2f7cb2de3e9220aebf74a895

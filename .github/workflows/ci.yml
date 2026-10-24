@@ -1,10 +1,16 @@
 name: CI
 
+# On GitHub's hosted runners (ADR 0045 in the monorepo).
 on:
   # Branch pushes are covered by their pull request.
   push:
     branches: [main]
   pull_request:
+
+# A new push to a pull request cancels its older runs. Each push to main runs in full.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -12,28 +18,34 @@ permissions:
 jobs:
   check:
     name: nix flake check
-    runs-on: ephemeral
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      # The monorepo is private: Nix fetches the pinned release over SSH with a deploy key that
-      # can only read shoal/shoal, against Forgejo's pinned host key.
-      - name: Key for the monorepo
-        env:
-          TIDEFELL_READ_KEY: ${{ secrets.TIDEFELL_READ_KEY }}
-          KNOWN_HOSTS: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+      # The image's preinstalled toolchains that no step here uses, for the Nix store.
+      - name: Room on the disk
         run: |
-          dir="$RUNNER_TEMP/ssh"
-          mkdir -p "$dir"
-          chmod 700 "$dir"
-          # A secret pasted with Windows line endings makes ssh refuse the key ("error in libcrypto").
-          (umask 077 && printf '%s\n' "$TIDEFELL_READ_KEY" | tr -d '\r' > "$dir/key")
-          ssh-keygen -l -f "$dir/key" > /dev/null || { echo "::error::TIDEFELL_READ_KEY is not a usable private key"; exit 1; }
-          printf '%s\n' "$KNOWN_HOSTS" > "$dir/known_hosts"
-          echo "GIT_SSH_COMMAND=ssh -i $dir/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$dir/known_hosts -o StrictHostKeyChecking=yes" >> "$GITHUB_ENV"
-      # The always-on check boots VMs, which need KVM inside Nix's build sandbox: the build
-      # users, not only the runner's user, must be able to open /dev/kvm.
+          sudo rm -rf /usr/share/dotnet /usr/local/.ghcup /opt/ghc /opt/hostedtoolcache/CodeQL \
+            /usr/local/lib/android /usr/local/share/powershell /usr/local/share/chromium
+          df -h /
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        with:
+          enable_kvm: true
+      # The Nix store, kept until the lock file changes and saved from main only.
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ hashFiles('flake.lock') }}
+          restore-prefixes-first-match: nix-
+          save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          gc-max-store-size-linux: 8G
+          purge: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          purge-prefixes: nix-
+          purge-created: 0
+          purge-primary-key: never
+      # The VM tests boot VMs, which need KVM inside Nix's build sandbox: the build users, not
+      # only the runner's user, must be able to open /dev/kvm.
       - name: KVM in the build sandbox
         run: |
           ls -l /dev/kvm || true
@@ -50,24 +62,17 @@ jobs:
             }'
       - name: Check
         run: nix flake check --print-build-logs
-      - name: Remove the key
-        if: always()
-        run: rm -rf "$RUNNER_TEMP/ssh"
 
   # The workflows themselves (ADR 0031): actionlint, and zizmor, whose findings of medium
   # severity or higher fail, so actions stay pinned by commit.
   workflows:
     name: Workflows
-    runs-on: ephemeral
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
       - uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
-        # It downloads under $HOME, which the runners on this machine share; a HOME of
-        # each job's own keeps jobs running at once from overwriting each other's files.
-        env:
-          HOME: ${{ runner.temp }}
         with:
           tool: zizmor@1.30.1
       - name: actionlint
@@ -78,9 +83,9 @@ jobs:
           curl -sfL -o "$RUNNER_TEMP/$name" "https://github.com/rhysd/actionlint/releases/download/v$version/$name"
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/$name" | sha256sum --check --quiet
           tar -xzf "$RUNNER_TEMP/$name" -C "$RUNNER_TEMP" actionlint
-          "$RUNNER_TEMP/actionlint" -config-file .forgejo/actionlint.yaml .forgejo/workflows/*.yml
+          "$RUNNER_TEMP/actionlint"
       - name: zizmor
-        run: zizmor --offline --min-severity medium .forgejo/workflows/*.yml
+        run: zizmor --offline --min-severity medium .github
       # The old name stays out of the tree (ADR 0043 in the monorepo).
       - name: The old name stays out
         run: scripts/check-old-name.sh

@@ -2,10 +2,9 @@
   description = "Shoal infrastructure: relay, DNS/pkarr lookup, full replicas and self-run always-on peers";
 
   inputs = {
-    # The monorepo release this infrastructure runs, from Forgejo over SSH (the repository is
-    # private). Bump the tag deliberately; flake.lock records it. Until the release with storage
-    # peers (Phase 6), main as of their configuration.
-    shoal.url = "git+ssh://git@github.com/ShoalSync/shoal?ref=refs/tags/v0.24.0-rc.1";
+    # The monorepo release this infrastructure runs, from GitHub. Bump the tag deliberately;
+    # flake.lock records it.
+    shoal.url = "github:ShoalSync/shoal/v0.24.0-rc.1";
     # One nixpkgs for everything: the monorepo's pin.
     nixpkgs.follows = "shoal/nixpkgs";
     # Upstream relay and DNS server sources, built by ./packages.nix.

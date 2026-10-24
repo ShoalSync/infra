@@ -20,7 +20,7 @@ Changes to shared definitions always start in the monorepo: monorepo change → 
 pin bump here. This repository never defines a type, message, config key or term that the
 monorepo does not. See [repository map](https://github.com/ShoalSync/shoal/blob/main/docs/repos.md).
 
-Work that spans repositories is tracked by one issue in `shoal/shoal`, labelled
+Work that spans repositories is tracked by one issue in `ShoalSync/shoal`, labelled
 `repo:infra`.
 
 ## Local rules
