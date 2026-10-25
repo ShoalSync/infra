@@ -1,7 +1,5 @@
 # Shoal infrastructure
 
-Shoal Sync, formerly Tidefell.
-
 NixOS modules and roles for servers that support [Shoal](https://github.com/ShoalSync/shoal).
 Shoal needs no central server: these improve connectivity, and let anyone run an always-on
 peer on a machine they control. The project runs no storage or web service for users
@@ -105,8 +103,7 @@ Licensed under either of
 
 at your option.
 
-All earlier versions of this code, including commits made under the name Tidefell, are also
-available under MIT OR Apache-2.0.
+All earlier versions of this code are also available under MIT OR Apache-2.0.
 
 ### Contribution
 
