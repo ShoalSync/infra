@@ -86,16 +86,16 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1792858907,
-        "narHash": "sha256-+uUU55VpUzB2GG8/d6kS6qqhyTBb80dbE+2KVnP8y7o=",
+        "lastModified": 1792963061,
+        "narHash": "sha256-1ln6iE3GX8kfESLkU4iyGNXAbZPWqPfCJiPXKKPpQ1I=",
         "owner": "ShoalSync",
         "repo": "shoal",
-        "rev": "99c6be0c1eff90094e2be526754c246fe2131e5b",
+        "rev": "f58c22ac57eaa3fbf29546632c91ac88817ff638",
         "type": "github"
       },
       "original": {
         "owner": "ShoalSync",
-        "ref": "v0.24.0-rc.1",
+        "ref": "v0.24.0",
         "repo": "shoal",
         "type": "github"
       }

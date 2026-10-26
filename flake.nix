@@ -4,7 +4,7 @@
   inputs = {
     # The monorepo release this infrastructure runs, from GitHub. Bump the tag deliberately;
     # flake.lock records it.
-    shoal.url = "github:ShoalSync/shoal/v0.24.0-rc.1";
+    shoal.url = "github:ShoalSync/shoal/v0.24.0";
     # One nixpkgs for everything: the monorepo's pin.
     nixpkgs.follows = "shoal/nixpkgs";
     # Upstream relay and DNS server sources, built by ./packages.nix.
